@@ -1,7 +1,13 @@
 import type { Layer } from "@/lib/map-editor/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 type LayerListPanelProps = {
   layers: Layer[];
@@ -62,7 +68,9 @@ export function LayerListPanel({
                 <span className="min-w-0 truncate text-left text-sm font-medium text-stone-800">
                   {layer.name}
                 </span>
-                <Badge className="text-[10px]">z: {layers.findIndex((item) => item.id === layer.id) + 1}</Badge>
+                <Badge className="text-[10px]">
+                  z: {layers.findIndex((item) => item.id === layer.id) + 1}
+                </Badge>
                 <Button
                   variant="outline"
                   size="sm"
