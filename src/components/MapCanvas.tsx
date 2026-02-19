@@ -6,6 +6,7 @@ import type {
   MapImage,
   ResizeHandle,
 } from "@/lib/map-editor/types";
+import { Button } from "@/components/ui/button";
 
 type MapCanvasProps = {
   frameRef: React.RefObject<HTMLDivElement | null>;
@@ -122,15 +123,17 @@ export function MapCanvas({
                         "w",
                       ] as ResizeHandle[]
                     ).map((handle) => (
-                      <button
-                        key={handle}
-                        onPointerDown={(event) =>
-                          onResizePointerDown(event, layer, handle)
-                        }
-                        className={`absolute h-4 w-4 rounded-sm border border-orange-700 bg-white ${resizeHandleClass[handle]}`}
-                        aria-label={`Resize ${handle}`}
-                      />
-                    ))}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    key={handle}
+                    onPointerDown={(event) =>
+                      onResizePointerDown(event, layer, handle)
+                    }
+                    className={`absolute h-4 w-4 rounded-sm border border-orange-700 bg-white p-0 ${resizeHandleClass[handle]}`}
+                    aria-label={`Resize ${handle}`}
+                  />
+                ))}
                   </div>
                 ) : null}
               </div>

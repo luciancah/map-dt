@@ -11,6 +11,16 @@ import {
 import { MapCanvas } from "@/components/MapCanvas";
 import { LayerListPanel } from "@/components/LayerListPanel";
 import { ScalePanel } from "@/components/ScalePanel";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useMapImageUploader } from "@/hooks/useMapImageUploader";
 import { useMapScale } from "@/hooks/useMapScale";
 import { useRectLayerEditor } from "@/hooks/useRectLayerEditor";
@@ -180,60 +190,57 @@ export default function Home() {
     <main className="min-h-screen bg-stone-100 p-4 text-stone-900 md:p-6">
       <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 lg:flex-row">
         <section className="order-2 flex-1 space-y-3 md:order-1">
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-stone-300 bg-white p-3">
-            <button
-              onClick={() => setTool("select")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                tool === "select"
-                  ? "bg-stone-900 text-white"
-                  : "bg-stone-200 text-stone-800 hover:bg-stone-300"
-              }`}
-            >
-              Select
-            </button>
-            <button
-              onClick={() => setTool("rect")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                tool === "rect"
-                  ? "bg-orange-500 text-white"
-                  : "bg-stone-200 text-stone-800 hover:bg-stone-300"
-              }`}
-            >
-              Rectangle
-            </button>
-            <button
-              onClick={() => mapInputRef.current?.click()}
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500"
-            >
-              지도 업로드
-            </button>
-            <button
-              onClick={resetMapAndLayers}
-              className="rounded-md bg-stone-200 px-3 py-1.5 text-sm font-medium hover:bg-stone-300"
-            >
-              지도 제거
-            </button>
-            <span className="ml-auto text-xs text-stone-500">
-              Tool: {tool === "rect" ? "Rect Draw" : "Select/Move"}
-            </span>
-          </div>
-          {mapImage ? (
-            <p className="rounded-md bg-stone-50 px-3 py-2 text-xs text-stone-600">
-              현재 지도: {mapImage.fileName} ({mapImage.width} ×{" "}
-              {mapImage.height}px)
-            </p>
-          ) : null}
+          <Card>
+            <CardHeader>
+              <CardTitle>Map Canvas</CardTitle>
+              <CardDescription>도구 선택 후 지도 위에서 사각형을 그려보세요.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={() => setTool("select")}
+                  variant={tool === "select" ? "default" : "secondary"}
+                  size="sm"
+                >
+                  Select
+                </Button>
+                <Button
+                  onClick={() => setTool("rect")}
+                  variant={tool === "rect" ? "default" : "secondary"}
+                  size="sm"
+                >
+                  Rectangle
+                </Button>
+                <Button onClick={() => mapInputRef.current?.click()} size="sm">
+                  지도 업로드
+                </Button>
+                <Button onClick={resetMapAndLayers} variant="outline" size="sm">
+                  지도 제거
+                </Button>
+                <span className="ml-auto text-xs text-stone-500">
+                  Tool: {tool === "rect" ? "Rect Draw" : "Select/Move"}
+                </span>
+              </div>
 
-          {mapError ? (
-            <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
-              {mapError}
-            </p>
-          ) : null}
-          {mapLoading ? (
-            <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              업로드 처리 중...
-            </p>
-          ) : null}
+              {mapImage ? (
+                <p className="rounded-md bg-stone-50 px-3 py-2 text-xs text-stone-600">
+                  현재 지도: {mapImage.fileName} ({mapImage.width} ×{" "}
+                  {mapImage.height}px)
+                </p>
+              ) : null}
+
+              {mapError ? (
+                <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {mapError}
+                </p>
+              ) : null}
+              {mapLoading ? (
+                <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  업로드 처리 중...
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
 
           <MapCanvas
             frameRef={frameRef}
@@ -275,61 +282,64 @@ export default function Home() {
             metersPerGrid={scale ? scale.metersPerGrid : null}
           />
 
-          <div className="rounded-2xl border border-stone-300 bg-white p-4">
-            <LayerListPanel
-              layers={layers}
-              selectedId={selectedId}
-              onSelectLayer={handleLayerSelect}
-              onToggleLayerVisibility={toggleLayerVisible}
-              onMoveLayer={moveLayer}
-              onDeleteLayer={removeLayer}
-            />
-          </div>
+          <LayerListPanel
+            layers={layers}
+            selectedId={selectedId}
+            onSelectLayer={handleLayerSelect}
+            onToggleLayerVisibility={toggleLayerVisible}
+            onMoveLayer={moveLayer}
+            onDeleteLayer={removeLayer}
+          />
 
           {selectedLayer ? (
-            <div className="rounded-md border border-stone-200 bg-white p-3 text-xs text-stone-700">
-              <label className="mb-2 block">
-                <span className="mb-1 block text-xs text-stone-600">레이어 이름</span>
+            <Card>
+              <CardHeader>
+                <CardTitle>선택 레이어</CardTitle>
+                <CardDescription>레이어 이름 수정</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
                 <form
                   key={selectedLayer.id}
                   onSubmit={handleLayerNameSubmit}
-                  className="flex gap-2"
+                  className="space-y-2"
                 >
-                  <input
-                    name="layerName"
-                    defaultValue={selectedLayer.name}
-                    onChange={() => {
-                      setLayerNameError("");
-                    }}
-                    onBlur={(event) => {
-                      const form = event.currentTarget.form;
-                      if (form) {
-                        submitLayerName(form);
-                      }
-                    }}
-                    className="w-full rounded-md border border-stone-300 px-2 py-1 text-sm"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-md bg-orange-500 px-3 py-1 text-xs text-white hover:bg-orange-400"
-                  >
-                    적용
-                  </button>
+                  <Label htmlFor={`layer-name-${selectedLayer.id}`}>레이어 이름</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id={`layer-name-${selectedLayer.id}`}
+                      name="layerName"
+                      defaultValue={selectedLayer.name}
+                      onChange={() => {
+                        setLayerNameError("");
+                      }}
+                      onBlur={(event) => {
+                        const form = event.currentTarget.form;
+                        if (form) {
+                          submitLayerName(form);
+                        }
+                      }}
+                    />
+                    <Button type="submit" size="sm" className="shrink-0">
+                      적용
+                    </Button>
+                  </div>
+                  <span className="text-xs text-red-600">{layerNameError}</span>
                 </form>
-                <span className="mt-1 block text-xs text-red-600">
-                  {layerNameError}
-                </span>
-              </label>
-              <p className="font-semibold text-stone-900">{selectedLayer.name}</p>
-              <p>
-                x: {Math.round(selectedLayer.x)}, y:{" "}
-                {Math.round(selectedLayer.y)}
-              </p>
-              <p>
-                w: {Math.round(selectedLayer.width)}, h:{" "}
-                {Math.round(selectedLayer.height)}
-              </p>
-            </div>
+
+                <div className="text-xs text-stone-700">
+                  <p className="text-sm font-semibold text-stone-900">
+                    {selectedLayer.name}
+                  </p>
+                  <p>
+                    x: {Math.round(selectedLayer.x)}, y: {Math.round(selectedLayer.y)}
+                  </p>
+                  <p>
+                    w: {Math.round(selectedLayer.width)}, h:{" "}
+                    {Math.round(selectedLayer.height)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           ) : null}
         </aside>
       </div>
