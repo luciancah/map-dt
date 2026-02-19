@@ -34,27 +34,39 @@ export function LayerListPanel({
             .map((layer) => (
               <div
                 key={layer.id}
+                onClick={() => onSelectLayer(layer.id)}
                 className={`flex items-center gap-2 rounded-md border px-2 py-2 ${
                   layer.id === selectedId
                     ? "border-orange-300 bg-orange-50"
                     : "border-stone-200 bg-stone-50"
                 }`}
+                role="button"
+                tabIndex={0}
+                aria-label={`${layer.name} 레이어 선택`}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    onSelectLayer(layer.id);
+                  }
+                }}
               >
-                <button
-                  className="truncate text-left text-sm font-medium text-stone-800"
-                  onClick={() => onSelectLayer(layer.id)}
-                >
+                <span className="truncate text-left text-sm font-medium text-stone-800">
                   {layer.name}
-                </button>
+                </span>
                 <button
                   className="ml-auto rounded border border-stone-300 px-2 py-1 text-xs text-stone-700 hover:bg-stone-200"
-                  onClick={() => onToggleLayerVisibility(layer.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleLayerVisibility(layer.id);
+                  }}
                 >
                   {layer.visible ? "Hide" : "Show"}
                 </button>
                 <button
                   className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
-                  onClick={() => onDeleteLayer(layer.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDeleteLayer(layer.id);
+                  }}
                 >
                   삭제
                 </button>
