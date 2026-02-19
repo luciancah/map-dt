@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { EDITOR_RULES } from "@/lib/map-editor/rules";
 import type {
@@ -107,8 +109,10 @@ export function MapCanvas({
   displayHeight,
   displayScale = 1,
 }: MapCanvasProps) {
-  const boardWidth = displayWidth ?? (mapImage?.width ?? EDITOR_RULES.fallbackMapWidth);
-  const boardHeight = displayHeight ?? (mapImage?.height ?? EDITOR_RULES.fallbackMapHeight);
+  const boardWidth =
+    displayWidth ?? mapImage?.width ?? EDITOR_RULES.fallbackMapWidth;
+  const boardHeight =
+    displayHeight ?? mapImage?.height ?? EDITOR_RULES.fallbackMapHeight;
   const gridSize = (gridStepPx ?? EDITOR_RULES.gridStep) * displayScale;
   const resizeHandleClass: Record<ResizeHandle, string> = {
     nw: "-left-2 -top-2 cursor-nwse-resize",
@@ -264,17 +268,17 @@ export function MapCanvas({
                         "w",
                       ] as ResizeHandle[]
                     ).map((handle) => (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    key={handle}
-                    onPointerDown={(event) =>
-                      onResizePointerDown(event, layer, handle)
-                    }
-                    className={`absolute h-4 w-4 rounded-sm border border-orange-700 bg-white p-0 ${resizeHandleClass[handle]}`}
-                    aria-label={`Resize ${handle}`}
-                  />
-                ))}
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        key={handle}
+                        onPointerDown={(event) =>
+                          onResizePointerDown(event, layer, handle)
+                        }
+                        className={`absolute h-4 w-4 rounded-sm border border-orange-700 bg-white p-0 ${resizeHandleClass[handle]}`}
+                        aria-label={`Resize ${handle}`}
+                      />
+                    ))}
                   </div>
                 ) : null}
               </div>
@@ -297,7 +301,10 @@ export function MapCanvas({
             <svg className="pointer-events-none absolute inset-0 h-full w-full">
               <polyline
                 points={draftPolygon.points
-                  .map((point) => `${point.x * displayScale},${point.y * displayScale}`)
+                  .map(
+                    (point) =>
+                      `${point.x * displayScale},${point.y * displayScale}`,
+                  )
                   .join(" ")}
                 fill="none"
                 stroke="rgba(249, 115, 22, 0.9)"
@@ -307,11 +314,42 @@ export function MapCanvas({
               {draftPolygon.points.length >= 3 ? (
                 <polygon
                   points={draftPolygon.points
-                    .map((point) => `${point.x * displayScale},${point.y * displayScale}`)
+                    .map(
+                      (point) =>
+                        `${point.x * displayScale},${point.y * displayScale}`,
+                    )
                     .join(" ")}
                   fill={withOpacity("#f97316", 0.18)}
                   stroke={withOpacity("#f97316", 0.9)}
                   strokeWidth={1}
+                />
+              ) : null}
+              {draftPolygon.points.length > 0
+                ? draftPolygon.points
+                    .slice(
+                      0,
+                      draftPolygon.points.length >= 2 ? -1 : undefined,
+                    )
+                    .map((point, index) => (
+                      <circle
+                        key={`${point.x}-${point.y}-${index}`}
+                        cx={point.x * displayScale}
+                        cy={point.y * displayScale}
+                        r={3.5}
+                        fill="#fb923c"
+                        stroke="rgba(255, 255, 255, 0.95)"
+                        strokeWidth={1.5}
+                      />
+                    ))
+                : null}
+              {draftPolygon.points.length === 1 ? (
+                <circle
+                  cx={draftPolygon.points[0]!.x * displayScale}
+                  cy={draftPolygon.points[0]!.y * displayScale}
+                  r={3.5}
+                  fill="#fb923c"
+                  stroke="rgba(255, 255, 255, 0.95)"
+                  strokeWidth={1.5}
                 />
               ) : null}
             </svg>
