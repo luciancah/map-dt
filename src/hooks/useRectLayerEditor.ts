@@ -26,6 +26,7 @@ type UseRectLayerEditor = {
   selectedLayer: Layer | null;
   interactionDraftRect: DraftRect | null;
   onCanvasPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  renameLayer: (layerId: string, nextName: string) => boolean;
   startResize: (
     event: ReactPointerEvent<HTMLButtonElement>,
     layer: Layer,
@@ -60,6 +61,39 @@ const normalizeRect = (
   const width = Math.abs(endX - startX);
   const height = Math.abs(endY - startY);
   return { left, top, width, height };
+};
+
+const normalizeLayerName = (value: string) => value.trim();
+
+const normalizeLayerNameForCompare = (value: string) =>
+  normalizeLayerName(value).toLowerCase();
+
+const makeUniqueLayerName = (
+  layers: Layer[],
+  baseName: string,
+  excludedLayerId?: string,
+) => {
+  const normalizedBase = normalizeLayerName(baseName);
+  if (!normalizedBase) return "";
+
+  const existing = new Set(
+    layers
+      .filter((layer) => layer.id !== excludedLayerId)
+      .map((layer) => normalizeLayerNameForCompare(layer.name)),
+  );
+
+  if (!existing.has(normalizeLayerNameForCompare(normalizedBase))) {
+    return normalizedBase;
+  }
+
+  for (let index = 1; index <= layers.length + 1; index += 1) {
+    const candidate = `${normalizedBase} ${index}`;
+    if (!existing.has(normalizeLayerNameForCompare(candidate))) {
+      return candidate;
+    }
+  }
+
+  return `${normalizedBase} ${Date.now()}`;
 };
 
 export function useRectLayerEditor({
@@ -301,8 +335,36 @@ export function useRectLayerEditor({
               EDITOR_RULES.minShapeSize,
               Math.max(0, mapHeight - layer.y),
             ),
-          })),
+        })),
     [layers, mapHeight, mapWidth],
+  );
+
+  const renameLayer = useCallback(
+    (layerId: string, nextName: string) => {
+      const next = normalizeLayerName(nextName);
+      if (!next) return false;
+
+      const normalizedNext = normalizeLayerNameForCompare(next);
+      const isDuplicate = clampedLayers.some(
+        (layer) =>
+          layer.id !== layerId &&
+          normalizeLayerNameForCompare(layer.name) === normalizedNext,
+      );
+
+      if (isDuplicate) {
+        return false;
+      }
+
+      setLayers((prev) =>
+        prev.map((layer) =>
+          layer.id === layerId
+            ? { ...layer, name: next, content: next }
+            : layer,
+        ),
+      );
+      return true;
+    },
+    [clampedLayers],
   );
 
   const onCanvasPointerDown = useCallback(
@@ -446,16 +508,20 @@ export function useRectLayerEditor({
           snappedDraft.width >= EDITOR_RULES.minShapeSize &&
           snappedDraft.height >= EDITOR_RULES.minShapeSize
         ) {
+          const layerName = makeUniqueLayerName(
+            clampedLayers,
+            "Rectangle",
+          );
           const newLayer: Layer = {
             id: crypto.randomUUID(),
-            name: `Rectangle ${clampedLayers.length + 1}`,
+            name: layerName,
             x: snappedDraft.left,
             y: snappedDraft.top,
             width: snappedDraft.width,
             height: snappedDraft.height,
             color: "rgba(255, 126, 54, 0.35)",
             visible: true,
-            content: "Context",
+            content: layerName,
           };
 
           setLayers((prev) => [...prev, newLayer]);
@@ -477,7 +543,7 @@ export function useRectLayerEditor({
     clampInsideMapY,
     getLocalPoint,
     interaction,
-    clampedLayers.length,
+    clampedLayers,
     getResizedRectByHandle,
     snapRect,
     snapToGrid,
@@ -537,6 +603,7 @@ export function useRectLayerEditor({
     selectedLayer,
     interactionDraftRect,
     onCanvasPointerDown,
+    renameLayer,
     startResize,
     selectLayer,
     toggleLayerVisible,

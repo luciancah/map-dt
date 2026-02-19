@@ -1,6 +1,13 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { MapCanvas } from "@/components/MapCanvas";
 import { LayerListPanel } from "@/components/LayerListPanel";
 import { ScalePanel } from "@/components/ScalePanel";
@@ -113,6 +120,7 @@ export default function Home() {
     selectedLayer,
     interactionDraftRect,
     onCanvasPointerDown,
+    renameLayer,
     startResize,
     selectLayer,
     toggleLayerVisible,
@@ -125,6 +133,33 @@ export default function Home() {
     gridStepPx,
     displayScale: mapDisplaySize.scale,
   });
+
+  const [layerNameError, setLayerNameError] = useState("");
+
+  const submitLayerName = (form: HTMLFormElement) => {
+    if (!selectedLayer) return;
+
+    const formData = new FormData(form);
+    const nextName = String(formData.get("layerName") ?? "").trim();
+
+    if (!nextName) {
+      setLayerNameError("이름을 비워둘 수 없습니다.");
+      return;
+    }
+
+    const changed = renameLayer(selectedLayer.id, nextName);
+    if (!changed) {
+      setLayerNameError("이미 존재하는 레이어 이름입니다.");
+      return;
+    }
+
+    setLayerNameError("");
+  };
+
+  const handleLayerNameSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    submitLayerName(event.currentTarget);
+  };
 
   const resetMapAndLayers = () => {
     clearMapImage();
@@ -247,9 +282,39 @@ export default function Home() {
 
           {selectedLayer ? (
             <div className="rounded-md border border-stone-200 bg-white p-3 text-xs text-stone-700">
-              <p className="font-semibold text-stone-900">
-                {selectedLayer.name}
-              </p>
+              <label className="mb-2 block">
+                <span className="mb-1 block text-xs text-stone-600">레이어 이름</span>
+                <form
+                  key={selectedLayer.id}
+                  onSubmit={handleLayerNameSubmit}
+                  className="flex gap-2"
+                >
+                  <input
+                    name="layerName"
+                    defaultValue={selectedLayer.name}
+                    onChange={() => {
+                      setLayerNameError("");
+                    }}
+                    onBlur={(event) => {
+                      const form = event.currentTarget.form;
+                      if (form) {
+                        submitLayerName(form);
+                      }
+                    }}
+                    className="w-full rounded-md border border-stone-300 px-2 py-1 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md bg-orange-500 px-3 py-1 text-xs text-white hover:bg-orange-400"
+                  >
+                    적용
+                  </button>
+                </form>
+                <span className="mt-1 block text-xs text-red-600">
+                  {layerNameError}
+                </span>
+              </label>
+              <p className="font-semibold text-stone-900">{selectedLayer.name}</p>
               <p>
                 x: {Math.round(selectedLayer.x)}, y:{" "}
                 {Math.round(selectedLayer.y)}
