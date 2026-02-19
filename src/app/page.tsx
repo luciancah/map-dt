@@ -141,6 +141,7 @@ export default function Home() {
     onCanvasPointerDown,
     renameLayer,
     setLayerColor,
+    convertRectToPolygon,
     startPolygonNodeDrag,
     startResize,
     selectLayer,
@@ -190,6 +191,12 @@ export default function Home() {
   const handleLayerColorChange = (nextColor: string) => {
     if (!selectedLayer) return;
     setLayerColor(selectedLayer.id, nextColor);
+  };
+
+  const handleConvertRectToPolygon = () => {
+    if (!selectedLayer) return;
+
+    convertRectToPolygon(selectedLayer.id);
   };
 
   const resetMapAndLayers = () => {
@@ -387,6 +394,18 @@ export default function Home() {
                   <p className="text-sm font-semibold text-stone-900">
                     {selectedLayer.name}
                   </p>
+                  <p>형태: {selectedLayer.shape === "rect" ? "사각형" : "폴리곤"}</p>
+                  {selectedLayer.shape === "rect" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mt-2"
+                      onClick={handleConvertRectToPolygon}
+                    >
+                      사각형 → 폴리곤
+                    </Button>
+                  ) : null}
                   <p>
                     x: {Math.round(selectedLayer.x)}, y: {Math.round(selectedLayer.y)}
                   </p>

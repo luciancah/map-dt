@@ -42,6 +42,7 @@ type UseRectLayerEditor = {
   ) => void;
   selectLayer: (layerId: string | null) => void;
   toggleLayerVisible: (layerId: string) => void;
+  convertRectToPolygon: (layerId: string) => boolean;
   removeLayer: (layerId: string) => void;
   moveLayer: (layerId: string, direction: "up" | "down") => void;
   clearAllLayers: () => void;
@@ -893,6 +894,34 @@ export function useRectLayerEditor({
     }
   };
 
+  const convertRectToPolygon = useCallback((layerId: string) => {
+    const targetLayer = clampedLayers.find(
+      (layer) => layer.id === layerId && layer.shape === "rect",
+    );
+    if (!targetLayer) return false;
+
+    const points = [
+      { x: targetLayer.x, y: targetLayer.y },
+      { x: targetLayer.x + targetLayer.width, y: targetLayer.y },
+      {
+        x: targetLayer.x + targetLayer.width,
+        y: targetLayer.y + targetLayer.height,
+      },
+      { x: targetLayer.x, y: targetLayer.y + targetLayer.height },
+    ];
+
+    setLayers((prev) =>
+      prev.map((layer) =>
+        layer.id === layerId
+          ? { ...layer, shape: "polygon", points }
+          : layer,
+      ),
+    );
+
+    setSelectedId(layerId);
+    return true;
+  }, [clampedLayers]);
+
   const moveLayer = (layerId: string, direction: "up" | "down") => {
     setLayers((prev) => {
       const currentIndex = prev.findIndex((layer) => layer.id === layerId);
@@ -931,6 +960,7 @@ export function useRectLayerEditor({
     startResize,
     selectLayer,
     toggleLayerVisible,
+    convertRectToPolygon,
     moveLayer,
     removeLayer,
     clearAllLayers,
