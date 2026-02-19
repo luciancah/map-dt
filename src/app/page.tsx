@@ -1,65 +1,267 @@
-import Image from "next/image";
+"use client";
+
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { MapCanvas } from "@/components/MapCanvas";
+import { LayerListPanel } from "@/components/LayerListPanel";
+import { ScalePanel } from "@/components/ScalePanel";
+import { useMapImageUploader } from "@/hooks/useMapImageUploader";
+import { useMapScale } from "@/hooks/useMapScale";
+import { useRectLayerEditor } from "@/hooks/useRectLayerEditor";
+import { EDITOR_RULES } from "@/lib/map-editor/rules";
+
+type MapDisplaySize = {
+  width: number;
+  height: number;
+  scale: number;
+};
+
+const DESKTOP_BREAKPOINT = 1024;
+const BASELINE_PANEL_WIDTH = 390;
+const CANVAS_PAGE_PADDING_X = 24 * 2;
+const CANVAS_TOP_PADDING_Y = 220;
+
+const getFittedMapDisplaySize = (
+  imageWidth: number,
+  imageHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+): MapDisplaySize => {
+  const reservedWidth =
+    viewportWidth >= DESKTOP_BREAKPOINT ? BASELINE_PANEL_WIDTH : 0;
+  const availableWidth = Math.max(
+    320,
+    viewportWidth - reservedWidth - CANVAS_PAGE_PADDING_X,
+  );
+  const availableHeight = Math.max(240, viewportHeight - CANVAS_TOP_PADDING_Y);
+
+  const widthScale = availableWidth / imageWidth;
+  const heightScale = availableHeight / imageHeight;
+  const scale = Math.min(1, widthScale, heightScale);
+
+  return {
+    width: Math.max(1, Math.round(imageWidth * scale)),
+    height: Math.max(1, Math.round(imageHeight * scale)),
+    scale,
+  };
+};
 
 export default function Home() {
+  const mapInputRef = useRef<HTMLInputElement>(null);
+  const {
+    mapImage,
+    mapError,
+    loading: mapLoading,
+    onFileInputChange,
+    clearMapImage,
+  } = useMapImageUploader();
+  const {
+    realWidthText,
+    unit,
+    realWidthError,
+    gridCountText,
+    gridCountError,
+    gridStepPx,
+    scale,
+    setRealWidthText,
+    setUnit,
+    setGridCountText,
+  } = useMapScale(mapImage?.width ?? null);
+
+  const [viewportSize, setViewportSize] = useState(() => {
+    if (typeof window === "undefined") {
+      return {
+        width: 1280,
+        height: 720,
+      };
+    }
+
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+  });
+
+  const mapDisplaySize = useMemo(() => {
+    const baseWidth = mapImage?.width ?? EDITOR_RULES.fallbackMapWidth;
+    const baseHeight = mapImage?.height ?? EDITOR_RULES.fallbackMapHeight;
+
+    return getFittedMapDisplaySize(
+      baseWidth,
+      baseHeight,
+      viewportSize.width,
+      viewportSize.height,
+    );
+  }, [mapImage?.width, mapImage?.height, viewportSize]);
+
+  useEffect(() => {
+    const handleResize = () =>
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const {
+    tool,
+    setTool,
+    frameRef,
+    layers,
+    selectedId,
+    selectedLayer,
+    interactionDraftRect,
+    onCanvasPointerDown,
+    startResize,
+    selectLayer,
+    toggleLayerVisible,
+    removeLayer,
+    clearAllLayers,
+  } = useRectLayerEditor({
+    hasMapImage: Boolean(mapImage),
+    mapWidth: mapImage?.width,
+    mapHeight: mapImage?.height,
+    gridStepPx,
+    displayScale: mapDisplaySize.scale,
+  });
+
+  const resetMapAndLayers = () => {
+    clearMapImage();
+    clearAllLayers();
+  };
+
+  const handleMapFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    clearAllLayers();
+    onFileInputChange(event);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-stone-100 p-4 text-stone-900 md:p-6">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4 lg:flex-row">
+        <section className="order-2 flex-1 space-y-3 md:order-1">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-stone-300 bg-white p-3">
+            <button
+              onClick={() => setTool("select")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                tool === "select"
+                  ? "bg-stone-900 text-white"
+                  : "bg-stone-200 text-stone-800 hover:bg-stone-300"
+              }`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Select
+            </button>
+            <button
+              onClick={() => setTool("rect")}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                tool === "rect"
+                  ? "bg-orange-500 text-white"
+                  : "bg-stone-200 text-stone-800 hover:bg-stone-300"
+              }`}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              Rectangle
+            </button>
+            <button
+              onClick={() => mapInputRef.current?.click()}
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500"
+            >
+              지도 업로드
+            </button>
+            <button
+              onClick={resetMapAndLayers}
+              className="rounded-md bg-stone-200 px-3 py-1.5 text-sm font-medium hover:bg-stone-300"
+            >
+              지도 제거
+            </button>
+            <span className="ml-auto text-xs text-stone-500">
+              Tool: {tool === "rect" ? "Rect Draw" : "Select/Move"}
+            </span>
+          </div>
+          {mapImage ? (
+            <p className="rounded-md bg-stone-50 px-3 py-2 text-xs text-stone-600">
+              현재 지도: {mapImage.fileName} ({mapImage.width} ×{" "}
+              {mapImage.height}px)
+            </p>
+          ) : null}
+
+          {mapError ? (
+            <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {mapError}
+            </p>
+          ) : null}
+          {mapLoading ? (
+            <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              업로드 처리 중...
+            </p>
+          ) : null}
+
+          <MapCanvas
+            frameRef={frameRef}
+            mapImage={mapImage}
+            layers={layers}
+            selectedId={selectedId}
+            draftRect={interactionDraftRect}
+            onPointerDown={onCanvasPointerDown}
+            onResizePointerDown={startResize}
+            gridStepPx={gridStepPx}
+            displayWidth={mapDisplaySize.width}
+            displayHeight={mapDisplaySize.height}
+            displayScale={mapDisplaySize.scale}
+          />
+        </section>
+
+        <aside className="order-1 flex w-full flex-col gap-4 lg:order-2 lg:w-96">
+          <input
+            ref={mapInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleMapFileChange}
+            className="hidden"
+          />
+
+          <ScalePanel
+            mapImage={mapImage}
+            realWidthText={realWidthText}
+            unit={unit}
+            error={realWidthError}
+            onRealWidthChange={setRealWidthText}
+            onUnitChange={setUnit}
+            gridCountText={gridCountText}
+            gridCountError={gridCountError}
+            onGridCountChange={setGridCountText}
+            pixelsPerMeter={scale ? scale.pixelsPerMeter : null}
+            metersPerPixel={scale ? scale.metersPerPixel : null}
+            pixelsPerGrid={scale ? scale.pixelsPerGrid : null}
+            metersPerGrid={scale ? scale.metersPerGrid : null}
+          />
+
+          <div className="rounded-2xl border border-stone-300 bg-white p-4">
+            <LayerListPanel
+              layers={layers}
+              selectedId={selectedId}
+              onSelectLayer={selectLayer}
+              onToggleLayerVisibility={toggleLayerVisible}
+              onDeleteLayer={removeLayer}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          </div>
+
+          {selectedLayer ? (
+            <div className="rounded-md border border-stone-200 bg-white p-3 text-xs text-stone-700">
+              <p className="font-semibold text-stone-900">
+                {selectedLayer.name}
+              </p>
+              <p>
+                x: {Math.round(selectedLayer.x)}, y:{" "}
+                {Math.round(selectedLayer.y)}
+              </p>
+              <p>
+                w: {Math.round(selectedLayer.width)}, h:{" "}
+                {Math.round(selectedLayer.height)}
+              </p>
+            </div>
+          ) : null}
+        </aside>
+      </div>
+    </main>
   );
 }
