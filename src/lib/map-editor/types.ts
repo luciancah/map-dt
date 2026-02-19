@@ -1,4 +1,6 @@
-export type Tool = "select" | "rect";
+export type Tool = "select" | "rect" | "polygon";
+
+export type LayerShape = "rect" | "polygon";
 
 export type Layer = {
   id: string;
@@ -7,6 +9,8 @@ export type Layer = {
   y: number;
   width: number;
   height: number;
+  shape: LayerShape;
+  points?: Point[];
   color: string;
   visible: boolean;
   content: string;
@@ -30,6 +34,12 @@ export type Interaction =
       type: "drawing";
       startX: number;
       startY: number;
+      currentX: number;
+      currentY: number;
+    }
+  | {
+      type: "polygon-drawing";
+      points: Point[];
       currentX: number;
       currentY: number;
     }
@@ -58,6 +68,12 @@ export type DraftRect = {
   top: number;
   width: number;
   height: number;
+};
+
+export type DraftPolygon = {
+  points: Point[];
+  currentX: number;
+  currentY: number;
 };
 
 export type ResizeHandle =

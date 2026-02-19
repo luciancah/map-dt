@@ -2,6 +2,7 @@ import React from "react";
 import { EDITOR_RULES } from "@/lib/map-editor/rules";
 import type {
   DraftRect,
+  DraftPolygon,
   Layer,
   MapImage,
   ResizeHandle,
@@ -14,6 +15,7 @@ type MapCanvasProps = {
   layers: Layer[];
   selectedId: string | null;
   draftRect: DraftRect | null;
+  draftPolygon: DraftPolygon | null;
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   onResizePointerDown: (
     event: React.PointerEvent<HTMLButtonElement>,
@@ -91,6 +93,7 @@ export function MapCanvas({
   layers,
   selectedId,
   draftRect,
+  draftPolygon,
   onPointerDown,
   onResizePointerDown,
   gridStepPx,
@@ -151,6 +154,50 @@ export function MapCanvas({
 
             const fillColor = withOpacity(layer.color, DEFAULT_LAYER_OPACITY);
             const borderColor = withOpacity(layer.color, 0.9);
+            const layerPoints = layer.points ?? [];
+            const isPolygon =
+              layer.shape === "polygon" && layerPoints.length >= 3;
+
+            if (isPolygon) {
+              const polygonPoints = layerPoints
+                .map(
+                  (point) =>
+                    `${(point.x - layer.x) * displayScale},${(point.y - layer.y) * displayScale}`,
+                )
+                .join(" ");
+
+              return (
+                <div
+                  key={layer.id}
+                  data-layer-id={layer.id}
+                  className={`pointer-events-auto absolute ${
+                    layer.id === selectedId ? "ring-2 ring-white/80" : ""
+                  }`}
+                  style={{
+                    left: `${layer.x * displayScale}px`,
+                    top: `${layer.y * displayScale}px`,
+                    width: `${layer.width * displayScale}px`,
+                    height: `${layer.height * displayScale}px`,
+                  }}
+                >
+                  <svg
+                    width={layer.width * displayScale}
+                    height={layer.height * displayScale}
+                    className="absolute inset-0 h-full w-full"
+                  >
+                    <polygon
+                      points={polygonPoints}
+                      fill={fillColor}
+                      stroke={borderColor}
+                      strokeWidth={Math.max(1, 2 / displayScale)}
+                    />
+                  </svg>
+                  <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
+                    {layer.content}
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div
@@ -207,13 +254,37 @@ export function MapCanvas({
           {draftRect ? (
             <div
               className="pointer-events-none absolute border-2 border-dashed border-orange-600 bg-orange-300/30"
-                style={{
+              style={{
                 left: `${draftRect.left * displayScale}px`,
                 top: `${draftRect.top * displayScale}px`,
                 width: `${draftRect.width * displayScale}px`,
                 height: `${draftRect.height * displayScale}px`,
               }}
             />
+          ) : null}
+
+          {draftPolygon ? (
+            <svg className="pointer-events-none absolute inset-0 h-full w-full">
+              <polyline
+                points={draftPolygon.points
+                  .map((point) => `${point.x * displayScale},${point.y * displayScale}`)
+                  .join(" ")}
+                fill="none"
+                stroke="rgba(249, 115, 22, 0.9)"
+                strokeWidth={Math.max(1, 2 / displayScale)}
+                strokeDasharray="8 6"
+              />
+              {draftPolygon.points.length >= 3 ? (
+                <polygon
+                  points={draftPolygon.points
+                    .map((point) => `${point.x * displayScale},${point.y * displayScale}`)
+                    .join(" ")}
+                  fill={withOpacity("#f97316", 0.18)}
+                  stroke={withOpacity("#f97316", 0.9)}
+                  strokeWidth={Math.max(1, 2 / displayScale)}
+                />
+              ) : null}
+            </svg>
           ) : null}
         </div>
       </div>

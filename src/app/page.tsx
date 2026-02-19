@@ -137,6 +137,7 @@ export default function Home() {
     selectedId,
     selectedLayer,
     interactionDraftRect,
+    interactionDraftPolygon,
     onCanvasPointerDown,
     renameLayer,
     setLayerColor,
@@ -225,6 +226,13 @@ export default function Home() {
                 >
                   Rectangle
                 </Button>
+                <Button
+                  onClick={() => setTool("polygon")}
+                  variant={tool === "polygon" ? "default" : "secondary"}
+                  size="sm"
+                >
+                  Polygon
+                </Button>
                 <Button onClick={() => mapInputRef.current?.click()} size="sm">
                   지도 업로드
                 </Button>
@@ -232,7 +240,12 @@ export default function Home() {
                   지도 제거
                 </Button>
                 <span className="ml-auto text-xs text-stone-500">
-                  Tool: {tool === "rect" ? "Rect Draw" : "Select/Move"}
+                  Tool:{" "}
+                  {tool === "select"
+                    ? "Select/Move"
+                    : tool === "rect"
+                      ? "Rect Draw"
+                      : "Polygon Draw"}
                 </span>
               </div>
 
@@ -262,6 +275,7 @@ export default function Home() {
             layers={layers}
             selectedId={selectedId}
             draftRect={interactionDraftRect}
+            draftPolygon={interactionDraftPolygon}
             onPointerDown={onCanvasPointerDown}
             onResizePointerDown={startResize}
             gridStepPx={gridStepPx}
