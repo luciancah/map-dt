@@ -469,13 +469,16 @@ export function useRectLayerEditor({
 
   const onCanvasPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
       const point = getLocalPoint(event);
       if (!point) return;
 
       const clickedLayerId = (event.target as HTMLElement).closest<HTMLElement>(
         "[data-layer-id]",
       )?.dataset.layerId;
+
+      if (tool !== "polygon" && event.button !== 0) {
+        return;
+      }
 
       if (tool === "select" && clickedLayerId) {
         const activeLayer = clampedLayers.find(
@@ -508,6 +511,28 @@ export function useRectLayerEditor({
 
       if (tool === "polygon" && hasMapImage) {
         if (interaction?.type === "polygon-drawing") {
+          if (event.button === 2) {
+            const nextPoints = [...interaction.points, point];
+            const createdLayerId = createPolygonLayer(nextPoints);
+            if (createdLayerId) {
+              setTool("select");
+              setInteraction(null);
+              event.preventDefault();
+              return;
+            }
+
+            setInteraction({
+              ...interaction,
+              points: nextPoints,
+              currentX: point.x,
+              currentY: point.y,
+            });
+            event.preventDefault();
+            return;
+          }
+
+          if (event.button !== 0) return;
+
           const nextPoint = point;
 
           if (event.detail >= 2 && interaction.points.length >= 2) {
@@ -529,16 +554,19 @@ export function useRectLayerEditor({
           return;
         }
 
-        setSelectedId(null);
-        setInteraction({
-          type: "polygon-drawing",
-          points: [point],
-          currentX: point.x,
-          currentY: point.y,
-        });
+        if (event.button === 0) {
+          setSelectedId(null);
+          setInteraction({
+            type: "polygon-drawing",
+            points: [point],
+            currentX: point.x,
+            currentY: point.y,
+          });
+        }
         return;
       }
 
+      if (event.button !== 0) return;
       setSelectedId(null);
     },
     [

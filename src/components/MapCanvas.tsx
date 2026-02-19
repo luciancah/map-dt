@@ -121,6 +121,7 @@ export function MapCanvas({
         <div
           ref={frameRef}
           onPointerDown={onPointerDown}
+          onContextMenu={(event) => event.preventDefault()}
           className="relative cursor-crosshair touch-none bg-stone-200"
           style={{
             width: boardWidth,
