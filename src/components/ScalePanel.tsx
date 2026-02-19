@@ -43,6 +43,42 @@ export function ScalePanel({
   pixelsPerGrid,
   metersPerGrid,
 }: ScalePanelProps) {
+  const imagePixelWidth = mapImage ? `${mapImage.width}px` : "-";
+  const scaleReadouts = [
+    {
+      label: "지도 가로 픽셀",
+      value: imagePixelWidth,
+    },
+    {
+      label: "1 px =",
+      value:
+        metersPerPixel == null
+          ? "-"
+          : `${formatScaleValue(metersPerPixel)} m`,
+    },
+    {
+      label: "1 m =",
+      value:
+        pixelsPerMeter == null
+          ? "-"
+          : `${formatScaleValue(pixelsPerMeter)} px`,
+    },
+    {
+      label: "1그리드 =",
+      value:
+        pixelsPerGrid == null
+          ? "-"
+          : `${formatScaleValue(pixelsPerGrid)} px`,
+    },
+    {
+      label: "1그리드 =",
+      value:
+        metersPerGrid == null
+          ? "-"
+          : `${formatScaleValue(metersPerGrid)} m`,
+    },
+  ];
+
   return (
     <Card>
       <CardHeader>
@@ -93,19 +129,11 @@ export function ScalePanel({
             </div>
             <span className="block text-xs text-red-600">{gridCountError}</span>
           </div>
-          <p>지도 가로 픽셀: {mapImage ? `${mapImage.width}px` : "-"}</p>
-          <p>
-            1 px = {metersPerPixel == null ? "-" : `${formatScaleValue(metersPerPixel)} m`}
-          </p>
-          <p>
-            1 m = {pixelsPerMeter == null ? "-" : `${formatScaleValue(pixelsPerMeter)} px`}
-          </p>
-          <p>
-            1그리드 = {pixelsPerGrid == null ? "-" : `${formatScaleValue(pixelsPerGrid)} px`}
-          </p>
-          <p>
-            1그리드 = {metersPerGrid == null ? "-" : `${formatScaleValue(metersPerGrid)} m`}
-          </p>
+          {scaleReadouts.map((item, index) => (
+            <p key={`${item.label}-${index}`}>
+              {item.label} {item.value}
+            </p>
+          ))}
         </div>
       </CardContent>
     </Card>
