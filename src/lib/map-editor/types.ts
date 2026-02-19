@@ -48,6 +48,9 @@ export type Interaction =
       startY: number;
       originWidth: number;
       originHeight: number;
+      originX: number;
+      originY: number;
+      handle: ResizeHandle;
     };
 
 export type DraftRect = {
@@ -56,6 +59,16 @@ export type DraftRect = {
   width: number;
   height: number;
 };
+
+export type ResizeHandle =
+  | "nw"
+  | "n"
+  | "ne"
+  | "e"
+  | "se"
+  | "s"
+  | "sw"
+  | "w";
 
 export type DistanceUnit = "m" | "km";
 

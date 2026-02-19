@@ -12,6 +12,7 @@ import {
   Interaction,
   Layer,
   Point,
+  ResizeHandle,
   Tool,
 } from "@/lib/map-editor/types";
 import { EDITOR_RULES } from "@/lib/map-editor/rules";
@@ -28,6 +29,7 @@ type UseRectLayerEditor = {
   startResize: (
     event: ReactPointerEvent<HTMLButtonElement>,
     layer: Layer,
+    handle: ResizeHandle,
   ) => void;
   selectLayer: (layerId: string | null) => void;
   toggleLayerVisible: (layerId: string) => void;
@@ -167,6 +169,120 @@ export function useRectLayerEditor({
     [mapHeight, mapWidth, snapToGrid],
   );
 
+  const getResizedRectByHandle = useCallback(
+    (
+      baseX: number,
+      baseY: number,
+      baseWidth: number,
+      baseHeight: number,
+      handle: ResizeHandle,
+      deltaX: number,
+      deltaY: number,
+    ) => {
+      let nextX = baseX;
+      let nextY = baseY;
+      let nextWidth = baseWidth;
+      let nextHeight = baseHeight;
+
+      switch (handle) {
+        case "nw":
+          nextX = baseX + deltaX;
+          nextY = baseY + deltaY;
+          nextWidth = baseWidth - deltaX;
+          nextHeight = baseHeight - deltaY;
+          break;
+        case "n":
+          nextY = baseY + deltaY;
+          nextHeight = baseHeight - deltaY;
+          break;
+        case "ne":
+          nextY = baseY + deltaY;
+          nextHeight = baseHeight - deltaY;
+          nextWidth = baseWidth + deltaX;
+          break;
+        case "w":
+          nextX = baseX + deltaX;
+          nextWidth = baseWidth - deltaX;
+          break;
+        case "e":
+          nextWidth = baseWidth + deltaX;
+          break;
+        case "sw":
+          nextX = baseX + deltaX;
+          nextWidth = baseWidth - deltaX;
+          nextHeight = baseHeight + deltaY;
+          break;
+        case "s":
+          nextHeight = baseHeight + deltaY;
+          break;
+        case "se":
+        default:
+          nextWidth = baseWidth + deltaX;
+          nextHeight = baseHeight + deltaY;
+          break;
+      }
+
+      const hasHorizontalBoundary = Number.isFinite(mapWidth ?? NaN) && (mapWidth ?? 0) > 0;
+      const hasVerticalBoundary = Number.isFinite(mapHeight ?? NaN) && (mapHeight ?? 0) > 0;
+      const boundaryWidth = mapWidth ?? Number.POSITIVE_INFINITY;
+      const boundaryHeight = mapHeight ?? Number.POSITIVE_INFINITY;
+
+      const snappedX = snapToGrid(nextX);
+      const snappedY = snapToGrid(nextY);
+      const snappedWidth = Math.max(
+        EDITOR_RULES.minShapeSize,
+        snapToGrid(Math.abs(nextWidth)),
+      );
+      const snappedHeight = Math.max(
+        EDITOR_RULES.minShapeSize,
+        snapToGrid(Math.abs(nextHeight)),
+      );
+
+      const boundedX = hasHorizontalBoundary
+        ? clamp(snappedX, 0, boundaryWidth)
+        : snappedX;
+      const boundedY = hasVerticalBoundary
+        ? clamp(snappedY, 0, boundaryHeight)
+        : snappedY;
+
+      const clampedWidth = clamp(
+        snappedWidth,
+        EDITOR_RULES.minShapeSize,
+        hasHorizontalBoundary
+          ? Math.max(EDITOR_RULES.minShapeSize, boundaryWidth - boundedX)
+          : snappedWidth,
+      );
+      const clampedHeight = clamp(
+        snappedHeight,
+        EDITOR_RULES.minShapeSize,
+        hasVerticalBoundary
+          ? Math.max(EDITOR_RULES.minShapeSize, boundaryHeight - boundedY)
+          : snappedHeight,
+      );
+
+      let finalX = boundedX;
+      let finalY = boundedY;
+      const finalWidth = clampedWidth;
+      const finalHeight = clampedHeight;
+
+      if (hasHorizontalBoundary) {
+        finalX = clamp(finalX, 0, Math.max(0, boundaryWidth - finalWidth));
+      }
+
+      if (hasVerticalBoundary) {
+        finalY = clamp(finalY, 0, Math.max(0, boundaryHeight - finalHeight));
+      }
+
+      return {
+        x: finalX,
+        y: finalY,
+        width: finalWidth,
+        height: finalHeight,
+      };
+    },
+    [mapHeight, mapWidth, snapToGrid],
+  );
+
   const clampedLayers = useMemo(
     () =>
       !mapWidth || !mapHeight
@@ -234,7 +350,11 @@ export function useRectLayerEditor({
   );
 
   const startResize = useCallback(
-    (event: ReactPointerEvent<HTMLButtonElement>, layer: Layer) => {
+    (
+      event: ReactPointerEvent<HTMLButtonElement>,
+      layer: Layer,
+      handle: ResizeHandle,
+    ) => {
       event.stopPropagation();
       if (event.button !== 0) return;
       const point = getLocalPoint(event);
@@ -246,8 +366,11 @@ export function useRectLayerEditor({
         layerId: layer.id,
         startX: point.x,
         startY: point.y,
+        originX: layer.x,
+        originY: layer.y,
         originWidth: layer.width,
         originHeight: layer.height,
+        handle,
       });
     },
     [getLocalPoint],
@@ -294,24 +417,17 @@ export function useRectLayerEditor({
       setLayers((prev) =>
         prev.map((layer) => {
           if (layer.id !== interaction.layerId) return layer;
-          const maxWidth = (mapWidth ?? layer.width) - layer.x;
-          const maxHeight = (mapHeight ?? layer.height) - layer.y;
-          const nextWidth = snapToGrid(interaction.originWidth + dx);
-          const nextHeight = snapToGrid(interaction.originHeight + dy);
+          const resized = getResizedRectByHandle(
+            interaction.originX,
+            interaction.originY,
+            interaction.originWidth,
+            interaction.originHeight,
+            interaction.handle,
+            dx,
+            dy,
+          );
 
-          return {
-            ...layer,
-            width: clamp(
-              nextWidth,
-              EDITOR_RULES.minShapeSize,
-              Math.max(EDITOR_RULES.minShapeSize, maxWidth),
-            ),
-            height: clamp(
-              nextHeight,
-              EDITOR_RULES.minShapeSize,
-              Math.max(EDITOR_RULES.minShapeSize, maxHeight),
-            ),
-          };
+          return { ...layer, ...resized };
         }),
       );
     };
@@ -362,8 +478,7 @@ export function useRectLayerEditor({
     getLocalPoint,
     interaction,
     clampedLayers.length,
-    mapHeight,
-    mapWidth,
+    getResizedRectByHandle,
     snapRect,
     snapToGrid,
     setTool,

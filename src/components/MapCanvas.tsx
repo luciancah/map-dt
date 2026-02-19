@@ -1,6 +1,11 @@
 import React from "react";
 import { EDITOR_RULES } from "@/lib/map-editor/rules";
-import type { DraftRect, Layer, MapImage } from "@/lib/map-editor/types";
+import type {
+  DraftRect,
+  Layer,
+  MapImage,
+  ResizeHandle,
+} from "@/lib/map-editor/types";
 
 type MapCanvasProps = {
   frameRef: React.RefObject<HTMLDivElement | null>;
@@ -12,6 +17,7 @@ type MapCanvasProps = {
   onResizePointerDown: (
     event: React.PointerEvent<HTMLButtonElement>,
     layer: Layer,
+    handle: ResizeHandle,
   ) => void;
   gridStepPx: number | null;
   displayWidth?: number;
@@ -35,6 +41,16 @@ export function MapCanvas({
   const boardWidth = displayWidth ?? (mapImage?.width ?? EDITOR_RULES.fallbackMapWidth);
   const boardHeight = displayHeight ?? (mapImage?.height ?? EDITOR_RULES.fallbackMapHeight);
   const gridSize = (gridStepPx ?? EDITOR_RULES.gridStep) * displayScale;
+  const resizeHandleClass: Record<ResizeHandle, string> = {
+    nw: "-left-2 -top-2 cursor-nwse-resize",
+    n: "left-1/2 -top-2 -translate-x-1/2 cursor-ns-resize",
+    ne: "-top-2 -right-2 cursor-nesw-resize",
+    e: "-right-2 top-1/2 -translate-y-1/2 cursor-ew-resize",
+    se: "-right-2 -bottom-2 cursor-nwse-resize",
+    s: "left-1/2 -bottom-2 -translate-x-1/2 cursor-ns-resize",
+    sw: "-left-2 -bottom-2 cursor-nesw-resize",
+    w: "-left-2 top-1/2 -translate-y-1/2 cursor-ew-resize",
+  };
 
   return (
     <section className="rounded-2xl border border-stone-300 bg-stone-100 p-3 shadow-sm">
@@ -93,11 +109,29 @@ export function MapCanvas({
                   {layer.content}
                 </div>
                 {layer.id === selectedId ? (
-                  <button
-                    onPointerDown={(event) => onResizePointerDown(event, layer)}
-                    className="absolute -bottom-2 -right-2 h-4 w-4 rounded-sm border border-orange-700 bg-white"
-                    aria-label="Resize rectangle"
-                  />
+                  <div className="absolute inset-0">
+                    {(
+                      [
+                        "nw",
+                        "n",
+                        "ne",
+                        "e",
+                        "se",
+                        "s",
+                        "sw",
+                        "w",
+                      ] as ResizeHandle[]
+                    ).map((handle) => (
+                      <button
+                        key={handle}
+                        onPointerDown={(event) =>
+                          onResizePointerDown(event, layer, handle)
+                        }
+                        className={`absolute h-4 w-4 rounded-sm border border-orange-700 bg-white ${resizeHandleClass[handle]}`}
+                        aria-label={`Resize ${handle}`}
+                      />
+                    ))}
+                  </div>
                 ) : null}
               </div>
             );
