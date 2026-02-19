@@ -190,7 +190,7 @@ export function MapCanvas({
                       points={polygonPoints}
                       fill={fillColor}
                       stroke={borderColor}
-                      strokeWidth={Math.max(1, 2 / displayScale)}
+                      strokeWidth={1}
                     />
                   </svg>
                   <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
@@ -272,7 +272,7 @@ export function MapCanvas({
                   .join(" ")}
                 fill="none"
                 stroke="rgba(249, 115, 22, 0.9)"
-                strokeWidth={Math.max(1, 2 / displayScale)}
+                strokeWidth={1}
                 strokeDasharray="8 6"
               />
               {draftPolygon.points.length >= 3 ? (
@@ -282,7 +282,7 @@ export function MapCanvas({
                     .join(" ")}
                   fill={withOpacity("#f97316", 0.18)}
                   stroke={withOpacity("#f97316", 0.9)}
-                  strokeWidth={Math.max(1, 2 / displayScale)}
+                  strokeWidth={1}
                 />
               ) : null}
             </svg>
