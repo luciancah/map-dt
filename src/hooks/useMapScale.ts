@@ -17,7 +17,9 @@ type UseMapScale = {
 };
 
 export function useMapScale(pixelWidth: number | null): UseMapScale {
-  const [realWidthText, setRealWidthText] = useState("");
+  const [realWidthText, setRealWidthText] = useState(
+    String(EDITOR_RULES.defaultRealWidthMeters),
+  );
   const [unit, setUnit] = useState<DistanceUnit>("m");
   const [gridCountText, setGridCountText] = useState(String(EDITOR_RULES.defaultGridCount));
 

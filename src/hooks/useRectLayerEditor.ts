@@ -94,13 +94,23 @@ export function useRectLayerEditor({
     [mapHeight],
   );
 
+  const snapToGrid = useCallback(
+    (value: number) => {
+      if (!gridStepPx || !Number.isFinite(gridStepPx) || gridStepPx <= 0) {
+        return value;
+      }
+      return Math.round(value / gridStepPx) * gridStepPx;
+    },
+    [gridStepPx],
+  );
+
   const getLocalPoint = useCallback(
     (event: { clientX: number; clientY: number }) => {
       const pixelScale = Number.isFinite(displayScale) && displayScale > 0 ? displayScale : 1;
       const frame = frameRef.current;
       if (!frame) return null;
       const bounds = frame.getBoundingClientRect();
-      return {
+      const point: Point = {
         x: clamp(
           (event.clientX - bounds.left) / pixelScale,
           0,
@@ -112,18 +122,12 @@ export function useRectLayerEditor({
           bounds.height / pixelScale,
         ),
       } satisfies Point;
+      return {
+        x: snapToGrid(point.x),
+        y: snapToGrid(point.y),
+      };
     },
-    [displayScale],
-  );
-
-  const snapToGrid = useCallback(
-    (value: number) => {
-      if (!gridStepPx || !Number.isFinite(gridStepPx) || gridStepPx <= 0) {
-        return value;
-      }
-      return Math.round(value / gridStepPx) * gridStepPx;
-    },
-    [gridStepPx],
+    [displayScale, snapToGrid],
   );
 
   const snapRect = useCallback(
