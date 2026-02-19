@@ -4,7 +4,13 @@ import type { MapImage } from "@/lib/map-editor/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ScalePanelProps = {
   mapImage: MapImage | null;
@@ -60,8 +66,13 @@ export function ScalePanel({
               value={unit}
               onValueChange={(nextUnit) => onUnitChange(nextUnit as DistanceUnit)}
             >
-              <option value="m">m</option>
-              <option value="km">km</option>
+              <SelectTrigger className="w-20">
+                <SelectValue placeholder="단위" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="m">m</SelectItem>
+                <SelectItem value="km">km</SelectItem>
+              </SelectContent>
             </Select>
           </div>
           <span className="text-xs text-red-600">{error}</span>
