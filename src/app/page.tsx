@@ -161,6 +161,10 @@ export default function Home() {
     submitLayerName(event.currentTarget);
   };
 
+  const handleLayerSelect = (layerId: string) => {
+    selectLayer(layerId);
+  };
+
   const resetMapAndLayers = () => {
     clearMapImage();
     clearAllLayers();
@@ -274,7 +278,7 @@ export default function Home() {
             <LayerListPanel
               layers={layers}
               selectedId={selectedId}
-              onSelectLayer={selectLayer}
+              onSelectLayer={handleLayerSelect}
               onToggleLayerVisibility={toggleLayerVisible}
               onDeleteLayer={removeLayer}
             />

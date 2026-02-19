@@ -572,6 +572,7 @@ export function useRectLayerEditor({
 
   const selectLayer = (layerId: string | null) => {
     setSelectedId(layerId);
+    setInteraction(null);
   };
 
   const toggleLayerVisible = (layerId: string) => {
