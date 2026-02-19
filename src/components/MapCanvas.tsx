@@ -17,6 +17,11 @@ type MapCanvasProps = {
   draftRect: DraftRect | null;
   draftPolygon: DraftPolygon | null;
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onPolygonNodePointerDown: (
+    event: React.PointerEvent<HTMLButtonElement>,
+    layer: Layer,
+    nodeIndex: number,
+  ) => void;
   onResizePointerDown: (
     event: React.PointerEvent<HTMLButtonElement>,
     layer: Layer,
@@ -95,6 +100,7 @@ export function MapCanvas({
   draftRect,
   draftPolygon,
   onPointerDown,
+  onPolygonNodePointerDown,
   onResizePointerDown,
   gridStepPx,
   displayWidth,
@@ -193,6 +199,29 @@ export function MapCanvas({
                       strokeWidth={1}
                     />
                   </svg>
+                  {layer.id === selectedId
+                    ? layerPoints.map((point, index) => {
+                        const nodeX = (point.x - layer.x) * displayScale;
+                        const nodeY = (point.y - layer.y) * displayScale;
+
+                        return (
+                          <button
+                            type="button"
+                            key={`${layer.id}-node-${index}`}
+                            onPointerDown={(event) =>
+                              onPolygonNodePointerDown(event, layer, index)
+                            }
+                            className="absolute h-3 w-3 rounded-full border border-white bg-orange-400 shadow"
+                            style={{
+                              left: `${nodeX}px`,
+                              top: `${nodeY}px`,
+                              transform: "translate(-50%, -50%)",
+                            }}
+                            aria-label={`${layer.name} node ${index + 1}`}
+                          />
+                        );
+                      })
+                    : null}
                   <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
                     {layer.content}
                   </div>

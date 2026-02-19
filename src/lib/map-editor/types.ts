@@ -52,6 +52,13 @@ export type Interaction =
       originY: number;
     }
   | {
+      type: "polygon-node-dragging";
+      layerId: string;
+      nodeIndex: number;
+      startX: number;
+      startY: number;
+    }
+  | {
       type: "resizing";
       layerId: string;
       startX: number;

@@ -30,6 +30,11 @@ type UseRectLayerEditor = {
   onCanvasPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   renameLayer: (layerId: string, nextName: string) => boolean;
   setLayerColor: (layerId: string, nextColor: string) => void;
+  startPolygonNodeDrag: (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    layer: Layer,
+    nodeIndex: number,
+  ) => void;
   startResize: (
     event: ReactPointerEvent<HTMLButtonElement>,
     layer: Layer,
@@ -486,6 +491,7 @@ export function useRectLayerEditor({
         );
         if (!activeLayer) return;
         setSelectedId(clickedLayerId);
+        if (activeLayer.shape === "polygon") return;
         setInteraction({
           type: "dragging",
           layerId: clickedLayerId,
@@ -608,6 +614,32 @@ export function useRectLayerEditor({
     [getLocalPoint],
   );
 
+  const startPolygonNodeDrag = useCallback(
+    (
+      event: ReactPointerEvent<HTMLButtonElement>,
+      layer: Layer,
+      nodeIndex: number,
+    ) => {
+      event.stopPropagation();
+      if (event.button !== 0) return;
+      if (layer.shape !== "polygon" || !layer.points) return;
+
+      const point = getLocalPoint(event);
+      if (!point) return;
+      if (!layer.points[nodeIndex]) return;
+
+      setSelectedId(layer.id);
+      setInteraction({
+        type: "polygon-node-dragging",
+        layerId: layer.id,
+        nodeIndex,
+        startX: point.x,
+        startY: point.y,
+      });
+    },
+    [getLocalPoint],
+  );
+
   useEffect(() => {
     if (!interaction) return;
 
@@ -629,6 +661,42 @@ export function useRectLayerEditor({
           current?.type === "polygon-drawing"
             ? { ...current, currentX: point.x, currentY: point.y }
             : current,
+        );
+        return;
+      }
+
+      if (interaction.type === "polygon-node-dragging") {
+        setLayers((prev) =>
+          prev.map((layer) => {
+            if (layer.id !== interaction.layerId || !layer.points) return layer;
+
+            const nextPoints = layer.points.map((layerPoint, index) => {
+              if (index !== interaction.nodeIndex) return layerPoint;
+
+              const nextPoint = {
+                x: snapToGrid(point.x),
+                y: snapToGrid(point.y),
+              };
+
+              const boundedPoint = {
+                x: mapWidth ? clamp(nextPoint.x, 0, mapWidth) : nextPoint.x,
+                y: mapHeight ? clamp(nextPoint.y, 0, mapHeight) : nextPoint.y,
+              };
+
+              return boundedPoint;
+            });
+
+            const bounds = computePolygonBounds(nextPoints);
+
+            return {
+              ...layer,
+              points: nextPoints,
+              x: bounds.x,
+              y: bounds.y,
+              width: bounds.width,
+              height: bounds.height,
+            };
+          }),
         );
         return;
       }
@@ -724,10 +792,6 @@ export function useRectLayerEditor({
         }
       }
 
-      if (interaction.type === "polygon-drawing") {
-        return;
-      }
-
       setInteraction(null);
     };
 
@@ -773,6 +837,8 @@ export function useRectLayerEditor({
     snapToGrid,
     setTool,
     createPolygonLayer,
+    mapWidth,
+    mapHeight,
   ]);
 
   const interactionDraftRect = useMemo(
@@ -859,6 +925,7 @@ export function useRectLayerEditor({
     onCanvasPointerDown,
     renameLayer,
     setLayerColor,
+    startPolygonNodeDrag,
     startResize,
     selectLayer,
     toggleLayerVisible,

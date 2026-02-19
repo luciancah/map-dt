@@ -141,6 +141,7 @@ export default function Home() {
     onCanvasPointerDown,
     renameLayer,
     setLayerColor,
+    startPolygonNodeDrag,
     startResize,
     selectLayer,
     toggleLayerVisible,
@@ -277,6 +278,7 @@ export default function Home() {
             draftRect={interactionDraftRect}
             draftPolygon={interactionDraftPolygon}
             onPointerDown={onCanvasPointerDown}
+            onPolygonNodePointerDown={startPolygonNodeDrag}
             onResizePointerDown={startResize}
             gridStepPx={gridStepPx}
             displayWidth={mapDisplaySize.width}
