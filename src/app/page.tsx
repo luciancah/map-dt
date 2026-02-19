@@ -25,6 +25,7 @@ import { useMapImageUploader } from "@/hooks/useMapImageUploader";
 import { useMapScale } from "@/hooks/useMapScale";
 import { useRectLayerEditor } from "@/hooks/useRectLayerEditor";
 import { EDITOR_RULES } from "@/lib/map-editor/rules";
+import type { Tool } from "@/lib/map-editor/types";
 
 type MapDisplaySize = {
   width: number;
@@ -36,6 +37,21 @@ const DESKTOP_BREAKPOINT = 1024;
 const BASELINE_PANEL_WIDTH = 390;
 const CANVAS_PAGE_PADDING_X = 24 * 2;
 const CANVAS_TOP_PADDING_Y = 220;
+const TOOL_OPTIONS: { id: Tool; label: string; activeLabel: string }[] = [
+  { id: "select", label: "Select", activeLabel: "Select/Move" },
+  { id: "rect", label: "Rectangle", activeLabel: "Rect Draw" },
+  { id: "polygon", label: "Polygon", activeLabel: "Polygon Draw" },
+];
+const layerColorPresets = [
+  "#f97316",
+  "#22c55e",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ef4444",
+];
+const toolLabelById = Object.fromEntries(
+  TOOL_OPTIONS.map((tool) => [tool.id, tool.activeLabel]),
+) as Record<Tool, string>;
 
 const getFittedMapDisplaySize = (
   imageWidth: number,
@@ -97,14 +113,6 @@ export default function Home() {
       height: window.innerHeight,
     };
   });
-
-  const layerColorPresets = [
-    "#f97316",
-    "#22c55e",
-    "#3b82f6",
-    "#8b5cf6",
-    "#ef4444",
-  ];
 
   const mapDisplaySize = useMemo(() => {
     const baseWidth = mapImage?.width ?? EDITOR_RULES.fallbackMapWidth;
@@ -221,27 +229,16 @@ export default function Home() {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  onClick={() => setTool("select")}
-                  variant={tool === "select" ? "default" : "secondary"}
-                  size="sm"
-                >
-                  Select
-                </Button>
-                <Button
-                  onClick={() => setTool("rect")}
-                  variant={tool === "rect" ? "default" : "secondary"}
-                  size="sm"
-                >
-                  Rectangle
-                </Button>
-                <Button
-                  onClick={() => setTool("polygon")}
-                  variant={tool === "polygon" ? "default" : "secondary"}
-                  size="sm"
-                >
-                  Polygon
-                </Button>
+                {TOOL_OPTIONS.map((toolOption) => (
+                  <Button
+                    key={toolOption.id}
+                    onClick={() => setTool(toolOption.id)}
+                    variant={tool === toolOption.id ? "default" : "secondary"}
+                    size="sm"
+                  >
+                    {toolOption.label}
+                  </Button>
+                ))}
                 <Button onClick={() => mapInputRef.current?.click()} size="sm">
                   지도 업로드
                 </Button>
@@ -249,12 +246,7 @@ export default function Home() {
                   지도 제거
                 </Button>
                 <span className="ml-auto text-xs text-stone-500">
-                  Tool:{" "}
-                  {tool === "select"
-                    ? "Select/Move"
-                    : tool === "rect"
-                      ? "Rect Draw"
-                      : "Polygon Draw"}
+                  Tool: {toolLabelById[tool]}
                 </span>
               </div>
 

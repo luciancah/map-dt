@@ -43,6 +43,7 @@ type MapCanvasProps = {
 };
 
 const DEFAULT_LAYER_OPACITY = 0.35;
+const RESIZE_HANDLES: ResizeHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 
 export function MapCanvas({
   frameRef,
@@ -216,6 +217,183 @@ export function MapCanvas({
     });
   };
 
+  const renderResizeHandles = (layer: Layer) => {
+    return (
+      <div className="absolute inset-0">
+        {RESIZE_HANDLES.map((handle) => (
+          <Button
+            key={handle}
+            variant="outline"
+            size="icon"
+            onPointerDown={(event) => onResizePointerDown(event, layer, handle)}
+            className={`absolute h-4 w-4 rounded-sm border border-orange-700 bg-white p-0 ${resizeHandleClass[handle]}`}
+            aria-label={`Resize ${handle}`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const renderPolygonLayer = (layer: Layer, layerPoints: Point[]) => {
+    const isLayerSelected = layer.id === selectedId;
+    const hoveredPolygonEdgeIndex =
+      hoveredPolygonEdge?.layerId === layer.id
+        ? hoveredPolygonEdge.edgeIndex
+        : null;
+    const colors = getColorPair(layer.color);
+    const polygonPoints = layerPoints
+      .map(
+        (point) =>
+          `${(point.x - layer.x) * displayScale},${(point.y - layer.y) * displayScale}`,
+      )
+      .join(" ");
+
+    return (
+      <div
+        key={layer.id}
+        data-layer-id={layer.id}
+        className={`pointer-events-auto absolute ${
+          isLayerSelected ? "ring-2 ring-white/80" : ""
+        }`}
+        onPointerLeave={() => {
+          setHoveredPolygonEdge((current) =>
+            current?.layerId === layer.id ? null : current,
+          );
+        }}
+        style={{
+          left: `${layer.x * displayScale}px`,
+          top: `${layer.y * displayScale}px`,
+          width: `${layer.width * displayScale}px`,
+          height: `${layer.height * displayScale}px`,
+        }}
+      >
+        <svg
+          width={layer.width * displayScale}
+          height={layer.height * displayScale}
+          className="absolute inset-0 h-full w-full"
+        >
+          <polygon
+            points={polygonPoints}
+            fill={colors.fill}
+            stroke={colors.border}
+            strokeWidth={1}
+          />
+          {renderPolygonEdgeControls(
+            layer,
+            layerPoints,
+            hoveredPolygonEdgeIndex,
+            isLayerSelected,
+          )}
+        </svg>
+        {isLayerSelected ? renderPolygonNodes(layer, layerPoints) : null}
+        <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
+          {layer.content}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRectLayer = (layer: Layer) => {
+    const colors = getColorPair(layer.color);
+
+    return (
+      <div
+        key={layer.id}
+        data-layer-id={layer.id}
+        className={`absolute ${
+          layer.id === selectedId ? "ring-2 ring-white/80" : ""
+        }`}
+        style={{
+          left: `${layer.x * displayScale}px`,
+          top: `${layer.y * displayScale}px`,
+          width: `${layer.width * displayScale}px`,
+          height: `${layer.height * displayScale}px`,
+          background: colors.fill,
+          borderColor: colors.border,
+          borderWidth: "1px",
+          borderStyle: "solid",
+        }}
+      >
+        <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
+          {layer.content}
+        </div>
+        {layer.id === selectedId ? renderResizeHandles(layer) : null}
+      </div>
+    );
+  };
+
+  const renderDraftRect = () => {
+    if (!draftRect) return null;
+
+    return (
+      <div
+        className="pointer-events-none absolute border-2 border-dashed border-orange-600 bg-orange-300/30"
+        style={{
+          left: `${draftRect.left * displayScale}px`,
+          top: `${draftRect.top * displayScale}px`,
+          width: `${draftRect.width * displayScale}px`,
+          height: `${draftRect.height * displayScale}px`,
+        }}
+      />
+    );
+  };
+
+  const renderDraftPolygon = () => {
+    if (!draftPolygon) return null;
+
+    const hasClosedShape = draftPolygon.points.length >= 3;
+    const draftPolygonPoints = draftPolygon.points
+      .map((point) => `${point.x * displayScale},${point.y * displayScale}`)
+      .join(" ");
+    const draftNodePoints =
+      draftPolygon.points.length >= 2
+        ? draftPolygon.points.slice(0, -1)
+        : [];
+
+    return (
+      <svg className="pointer-events-none absolute inset-0 h-full w-full">
+        <polyline
+          points={draftPolygonPoints}
+          fill="none"
+          stroke="rgba(249, 115, 22, 0.9)"
+          strokeWidth={1}
+          strokeDasharray="8 6"
+        />
+        {hasClosedShape ? (
+          <polygon
+            points={draftPolygonPoints}
+            fill={withOpacity("#f97316", 0.18)}
+            stroke={withOpacity("#f97316", 0.9)}
+            strokeWidth={1}
+          />
+        ) : null}
+        {draftNodePoints.length > 0
+          ? draftNodePoints.map((point, index) => (
+              <circle
+                key={`${point.x}-${point.y}-${index}`}
+                cx={point.x * displayScale}
+                cy={point.y * displayScale}
+                r={3.5}
+                fill="#fb923c"
+                stroke="rgba(255, 255, 255, 0.95)"
+                strokeWidth={1.5}
+              />
+            ))
+          : null}
+        {draftPolygon.points.length === 1 ? (
+          <circle
+            cx={draftPolygon.points[0]!.x * displayScale}
+            cy={draftPolygon.points[0]!.y * displayScale}
+            r={3.5}
+            fill="#fb923c"
+            stroke="rgba(255, 255, 255, 0.95)"
+            strokeWidth={1.5}
+          />
+        ) : null}
+      </svg>
+    );
+  };
+
   return (
     <section className="rounded-2xl border border-stone-300 bg-stone-100 p-3 shadow-sm">
       <div className="relative min-h-[320px] overflow-auto rounded-xl border border-stone-300">
@@ -254,194 +432,18 @@ export function MapCanvas({
           {layers.map((layer) => {
             if (!layer.visible) return null;
 
-            const fillColor = withOpacity(layer.color, DEFAULT_LAYER_OPACITY);
-            const borderColor = withOpacity(layer.color, 0.9);
             const layerPoints = layer.points ?? [];
-            const isPolygon =
-              layer.shape === "polygon" && layerPoints.length >= 3;
+            const isPolygon = layer.shape === "polygon" && layerPoints.length >= 3;
 
             if (isPolygon) {
-              const polygonPoints = layerPoints
-                .map(
-                  (point) =>
-                    `${(point.x - layer.x) * displayScale},${(point.y - layer.y) * displayScale}`,
-                )
-                .join(" ");
-              const hoveredPolygonEdgeIndex =
-                hoveredPolygonEdge?.layerId === layer.id
-                  ? hoveredPolygonEdge.edgeIndex
-                  : null;
-              const isLayerSelected = layer.id === selectedId;
-              const colors = getColorPair(layer.color);
-
-              return (
-                <div
-                  key={layer.id}
-                  data-layer-id={layer.id}
-                  className={`pointer-events-auto absolute ${
-                    layer.id === selectedId ? "ring-2 ring-white/80" : ""
-                  }`}
-                  onPointerLeave={() => {
-                    setHoveredPolygonEdge((current) =>
-                      current?.layerId === layer.id ? null : current,
-                    );
-                  }}
-                  style={{
-                    left: `${layer.x * displayScale}px`,
-                    top: `${layer.y * displayScale}px`,
-                    width: `${layer.width * displayScale}px`,
-                    height: `${layer.height * displayScale}px`,
-                  }}
-                >
-                  <svg
-                    width={layer.width * displayScale}
-                    height={layer.height * displayScale}
-                    className="absolute inset-0 h-full w-full"
-                  >
-                    <polygon
-                      points={polygonPoints}
-                      fill={colors.fill}
-                      stroke={colors.border}
-                      strokeWidth={1}
-                    />
-                    {renderPolygonEdgeControls(
-                      layer,
-                      layerPoints,
-                      hoveredPolygonEdgeIndex,
-                      isLayerSelected,
-                    )}
-                  </svg>
-                  {isLayerSelected
-                    ? renderPolygonNodes(layer, layerPoints)
-                    : null}
-                  <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
-                    {layer.content}
-                  </div>
-                </div>
-              );
+              return renderPolygonLayer(layer, layerPoints);
             }
 
-            return (
-              <div
-                key={layer.id}
-                data-layer-id={layer.id}
-                className={`absolute ${
-                  layer.id === selectedId ? "ring-2 ring-white/80" : ""
-                }`}
-                style={{
-                  left: `${layer.x * displayScale}px`,
-                  top: `${layer.y * displayScale}px`,
-                  width: `${layer.width * displayScale}px`,
-                  height: `${layer.height * displayScale}px`,
-                  background: fillColor,
-                  borderColor,
-                  borderWidth: "1px",
-                  borderStyle: "solid",
-                }}
-              >
-                <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
-                  {layer.content}
-                </div>
-                {layer.id === selectedId ? (
-                  <div className="absolute inset-0">
-                    {(
-                      [
-                        "nw",
-                        "n",
-                        "ne",
-                        "e",
-                        "se",
-                        "s",
-                        "sw",
-                        "w",
-                      ] as ResizeHandle[]
-                    ).map((handle) => (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        key={handle}
-                        onPointerDown={(event) =>
-                          onResizePointerDown(event, layer, handle)
-                        }
-                        className={`absolute h-4 w-4 rounded-sm border border-orange-700 bg-white p-0 ${resizeHandleClass[handle]}`}
-                        aria-label={`Resize ${handle}`}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            );
+            return renderRectLayer(layer);
           })}
 
-          {draftRect ? (
-            <div
-              className="pointer-events-none absolute border-2 border-dashed border-orange-600 bg-orange-300/30"
-              style={{
-                left: `${draftRect.left * displayScale}px`,
-                top: `${draftRect.top * displayScale}px`,
-                width: `${draftRect.width * displayScale}px`,
-                height: `${draftRect.height * displayScale}px`,
-              }}
-            />
-          ) : null}
-
-          {draftPolygon ? (
-            <svg className="pointer-events-none absolute inset-0 h-full w-full">
-              <polyline
-                points={draftPolygon.points
-                  .map(
-                    (point) =>
-                      `${point.x * displayScale},${point.y * displayScale}`,
-                  )
-                  .join(" ")}
-                fill="none"
-                stroke="rgba(249, 115, 22, 0.9)"
-                strokeWidth={1}
-                strokeDasharray="8 6"
-              />
-              {draftPolygon.points.length >= 3 ? (
-                <polygon
-                  points={draftPolygon.points
-                    .map(
-                      (point) =>
-                        `${point.x * displayScale},${point.y * displayScale}`,
-                    )
-                    .join(" ")}
-                  fill={withOpacity("#f97316", 0.18)}
-                  stroke={withOpacity("#f97316", 0.9)}
-                  strokeWidth={1}
-                />
-              ) : null}
-              {draftPolygon.points.length > 0
-                ? draftPolygon.points
-                    .slice(
-                      0,
-                      draftPolygon.points.length >= 2 ? -1 : undefined,
-                    )
-                    .map((point, index) => (
-                      <circle
-                        key={`${point.x}-${point.y}-${index}`}
-                        cx={point.x * displayScale}
-                        cy={point.y * displayScale}
-                        r={3.5}
-                        fill="#fb923c"
-                        stroke="rgba(255, 255, 255, 0.95)"
-                        strokeWidth={1.5}
-                      />
-                    ))
-                : null}
-              {draftPolygon.points.length === 1 ? (
-                <circle
-                  cx={draftPolygon.points[0]!.x * displayScale}
-                  cy={draftPolygon.points[0]!.y * displayScale}
-                  r={3.5}
-                  fill="#fb923c"
-                  stroke="rgba(255, 255, 255, 0.95)"
-                  strokeWidth={1.5}
-                />
-              ) : null}
-            </svg>
-          ) : null}
+          {renderDraftRect()}
+          {renderDraftPolygon()}
         </div>
       </div>
     </section>

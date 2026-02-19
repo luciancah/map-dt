@@ -430,102 +430,153 @@ export function useRectLayerEditor({
     [clampedLayers, getPolygonLayerGeometry],
   );
 
+  const getClickedLayerId = useCallback((event: { target: EventTarget | null }) => {
+    return (event.target as HTMLElement).closest<HTMLElement>("[data-layer-id]")
+      ?.dataset.layerId ?? null;
+  }, []);
+
+  const completePolygonByPoints = useCallback(
+    (candidatePoints: Point[]) => {
+      const createdLayerId = createPolygonLayer(candidatePoints);
+      if (!createdLayerId) return false;
+
+      setTool("select");
+      setInteraction(null);
+      return true;
+    },
+    [createPolygonLayer, setTool],
+  );
+
+  const addPolygonPointToInteraction = useCallback(
+    (
+      currentInteraction: Extract<Interaction, { type: "polygon-drawing" }>,
+      point: Point,
+    ) => {
+      const nextPoints = [...currentInteraction.points, point];
+      return setInteraction({
+        ...currentInteraction,
+        points: nextPoints,
+        currentX: point.x,
+        currentY: point.y,
+      });
+    },
+    [],
+  );
+
+  const handleSelectToolDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>, point: Point) => {
+      const clickedLayerId = getClickedLayerId(event);
+      if (!clickedLayerId) return false;
+
+      const activeLayer = clampedLayers.find((layer) => layer.id === clickedLayerId);
+      if (!activeLayer) return false;
+
+      setSelectedId(clickedLayerId);
+      setInteraction({
+        type: "dragging",
+        layerId: clickedLayerId,
+        startX: point.x,
+        startY: point.y,
+        originX: activeLayer.x,
+        originY: activeLayer.y,
+      });
+      return true;
+    },
+    [clampedLayers, getClickedLayerId],
+  );
+
+  const handleRectToolDown = useCallback((point: Point) => {
+    if (!hasMapImage) return false;
+
+    setSelectedId(null);
+    setInteraction({
+      type: "drawing",
+      startX: point.x,
+      startY: point.y,
+      currentX: point.x,
+      currentY: point.y,
+    });
+    return true;
+  }, [hasMapImage]);
+
+  const handleExistingPolygonDown = useCallback(
+    (
+      event: ReactPointerEvent<HTMLDivElement>,
+      interactionState: Extract<Interaction, { type: "polygon-drawing" }>,
+      point: Point,
+    ) => {
+      if (event.button === 2) {
+        const nextPoints = [...interactionState.points, point];
+        const isCreated = completePolygonByPoints(nextPoints);
+        if (isCreated) {
+          event.preventDefault();
+          return;
+        }
+
+        addPolygonPointToInteraction(interactionState, point);
+        event.preventDefault();
+        return;
+      }
+
+      if (event.button !== 0) return;
+
+      if (event.detail >= 2 && interactionState.points.length >= 2) {
+        const nextPoints = [...interactionState.points, point];
+        completePolygonByPoints(nextPoints);
+        setInteraction(null);
+        return;
+      }
+
+      addPolygonPointToInteraction(interactionState, point);
+    },
+    [addPolygonPointToInteraction, completePolygonByPoints],
+  );
+
+  const handleNewPolygonDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>, point: Point) => {
+      if (event.button !== 0) return;
+
+      setSelectedId(null);
+      setInteraction({
+        type: "polygon-drawing",
+        points: [point],
+        currentX: point.x,
+        currentY: point.y,
+      });
+    },
+    [],
+  );
+
+  const handlePolygonToolDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>, point: Point) => {
+      if (!interaction || interaction.type !== "polygon-drawing") {
+        handleNewPolygonDown(event, point);
+        return;
+      }
+
+      handleExistingPolygonDown(event, interaction, point);
+    },
+    [handleExistingPolygonDown, handleNewPolygonDown, interaction],
+  );
+
   const onCanvasPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const point = getLocalPoint(event);
       if (!point) return;
 
-      const clickedLayerId = (event.target as HTMLElement).closest<HTMLElement>(
-        "[data-layer-id]",
-      )?.dataset.layerId;
+      if (tool !== "polygon" && event.button !== 0) return;
 
-      if (tool !== "polygon" && event.button !== 0) {
-        return;
+      if (tool === "select") {
+        if (handleSelectToolDown(event, point)) return;
       }
 
-      if (tool === "select" && clickedLayerId) {
-        const activeLayer = clampedLayers.find(
-          (layer) => layer.id === clickedLayerId,
-        );
-        if (!activeLayer) return;
-        setSelectedId(clickedLayerId);
-        setInteraction({
-          type: "dragging",
-          layerId: clickedLayerId,
-          startX: point.x,
-          startY: point.y,
-          originX: activeLayer.x,
-          originY: activeLayer.y,
-        });
-        return;
+      if (tool === "rect") {
+        if (handleRectToolDown(point)) return;
       }
 
-      if (tool === "rect" && hasMapImage) {
-        setSelectedId(null);
-        setInteraction({
-          type: "drawing",
-          startX: point.x,
-          startY: point.y,
-          currentX: point.x,
-          currentY: point.y,
-        });
-        return;
-      }
-
-      if (tool === "polygon" && hasMapImage) {
-        if (interaction?.type === "polygon-drawing") {
-          if (event.button === 2) {
-            const nextPoints = [...interaction.points, point];
-            const createdLayerId = createPolygonLayer(nextPoints);
-            if (createdLayerId) {
-              setTool("select");
-              setInteraction(null);
-              event.preventDefault();
-              return;
-            }
-
-            setInteraction({
-              ...interaction,
-              points: nextPoints,
-              currentX: point.x,
-              currentY: point.y,
-            });
-            event.preventDefault();
-            return;
-          }
-
-          if (event.button !== 0) return;
-
-          const nextPoint = point;
-
-          if (event.detail >= 2 && interaction.points.length >= 2) {
-            const nextPoints = [...interaction.points, nextPoint];
-            const createdLayerId = createPolygonLayer(nextPoints);
-            if (createdLayerId) {
-              setTool("select");
-            }
-            setInteraction(null);
-            return;
-          }
-
-          setInteraction({
-            ...interaction,
-            points: [...interaction.points, nextPoint],
-            currentX: nextPoint.x,
-            currentY: nextPoint.y,
-          });
-          return;
-        }
-
-        if (event.button === 0) {
-          setSelectedId(null);
-          setInteraction({
-            type: "polygon-drawing",
-            points: [point],
-            currentX: point.x,
-            currentY: point.y,
-          });
-        }
+      if (tool === "polygon") {
+        if (!hasMapImage) return;
+        handlePolygonToolDown(event, point);
         return;
       }
 
@@ -533,13 +584,13 @@ export function useRectLayerEditor({
       setSelectedId(null);
     },
     [
-      clampedLayers,
-      createPolygonLayer,
       getLocalPoint,
+      handleRectToolDown,
+      handleSelectToolDown,
+      handlePolygonToolDown,
       hasMapImage,
-      setTool,
+      setSelectedId,
       tool,
-      interaction,
     ],
   );
 
@@ -795,48 +846,57 @@ export function useRectLayerEditor({
     }
   }, [clampedLayers, interaction, setTool, snapRect]);
 
-  const handleInteractionPointerMove = useCallback(
-    (event: globalThis.PointerEvent) => {
-      const point = getLocalPoint(event);
-      if (!interaction || !point) return;
+  const setDraftInteractionPoint = useCallback(
+    (
+      interactionState:
+        | Extract<Interaction, { type: "drawing" }>
+        | Extract<Interaction, { type: "polygon-drawing" }>,
+      point: Point,
+    ) => {
+      setInteraction({
+        ...interactionState,
+        currentX: point.x,
+        currentY: point.y,
+      });
+    },
+    [],
+  );
 
-      if (interaction.type === "drawing") {
-        setInteraction((current) =>
-          current?.type === "drawing"
-            ? { ...current, currentX: point.x, currentY: point.y }
-            : current,
-        );
-        return;
+  const updateInteractionByType = useCallback(
+    (interactionState: Interaction, point: Point) => {
+      switch (interactionState.type) {
+        case "drawing":
+        case "polygon-drawing":
+          setDraftInteractionPoint(interactionState, point);
+          return;
+        case "polygon-node-dragging":
+          updatePolygonNodeByInteraction(interactionState, point);
+          return;
+        case "dragging":
+          updateLayerDragByInteraction(interactionState, point);
+          return;
+        case "resizing":
+          updateLayerResizeByInteraction(interactionState, point);
+          return;
+        default:
+          break;
       }
-
-      if (interaction.type === "polygon-drawing") {
-        setInteraction((current) =>
-          current?.type === "polygon-drawing"
-            ? { ...current, currentX: point.x, currentY: point.y }
-            : current,
-        );
-        return;
-      }
-
-      if (interaction.type === "polygon-node-dragging") {
-        updatePolygonNodeByInteraction(interaction, point);
-        return;
-      }
-
-      if (interaction.type === "dragging") {
-        updateLayerDragByInteraction(interaction, point);
-        return;
-      }
-
-      updateLayerResizeByInteraction(interaction, point);
     },
     [
-      getLocalPoint,
-      interaction,
+      setDraftInteractionPoint,
       updateLayerDragByInteraction,
       updateLayerResizeByInteraction,
       updatePolygonNodeByInteraction,
     ],
+  );
+
+  const handleInteractionPointerMove = useCallback(
+    (event: globalThis.PointerEvent) => {
+      const point = getLocalPoint(event);
+      if (!interaction || !point) return;
+      updateInteractionByType(interaction, point);
+    },
+    [getLocalPoint, interaction, updateInteractionByType],
   );
 
   const finalizePolygonDrawingLayer = useCallback(
@@ -865,19 +925,26 @@ export function useRectLayerEditor({
     [createPolygonLayer, interaction, setTool],
   );
 
+  const finalizeInteractionByType = useCallback(
+    (interactionState: Interaction) => {
+      switch (interactionState.type) {
+        case "drawing":
+          finalizeDrawingLayer();
+          break;
+        case "polygon-drawing":
+          break;
+        default:
+          setInteraction(null);
+          break;
+      }
+    },
+    [finalizeDrawingLayer],
+  );
+
   const handleInteractionPointerUp = useCallback(() => {
     if (!interaction) return;
-
-    if (interaction.type === "drawing") {
-      finalizeDrawingLayer();
-    }
-
-    if (interaction.type === "polygon-drawing") {
-      return;
-    }
-
-    setInteraction(null);
-  }, [finalizeDrawingLayer, interaction]);
+    finalizeInteractionByType(interaction);
+  }, [finalizeInteractionByType, interaction]);
 
   useEffect(() => {
     if (!interaction) return;
