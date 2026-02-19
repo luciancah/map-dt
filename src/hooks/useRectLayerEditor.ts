@@ -17,6 +17,16 @@ import {
   Tool,
 } from "@/lib/map-editor/types";
 import { EDITOR_RULES } from "@/lib/map-editor/rules";
+import {
+  clamp,
+  computePolygonBounds,
+  isValidPolygon,
+  makeUniqueLayerName,
+  normalizeLayerName,
+  normalizeLayerNameForCompare,
+  normalizeRect,
+  clampPointToBounds,
+} from "@/lib/map-editor/geometry";
 
 type UseRectLayerEditor = {
   tool: Tool;
@@ -61,82 +71,7 @@ type UseRectLayerEditorOptions = {
   displayScale?: number;
 };
 
-const clamp = (value: number, min: number, max: number) => {
-  return Math.max(min, Math.min(max, value));
-};
-
-const normalizeRect = (
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number,
-) => {
-  const left = Math.min(startX, endX);
-  const top = Math.min(startY, endY);
-  const width = Math.abs(endX - startX);
-  const height = Math.abs(endY - startY);
-  return { left, top, width, height };
-};
-
-const normalizeLayerName = (value: string) => value.trim();
-
-const normalizeLayerNameForCompare = (value: string) =>
-  normalizeLayerName(value).toLowerCase();
-
-const makeUniqueLayerName = (
-  layers: Layer[],
-  baseName: string,
-  excludedLayerId?: string,
-) => {
-  const normalizedBase = normalizeLayerName(baseName);
-  if (!normalizedBase) return "";
-
-  const existing = new Set(
-    layers
-      .filter((layer) => layer.id !== excludedLayerId)
-      .map((layer) => normalizeLayerNameForCompare(layer.name)),
-  );
-
-  if (!existing.has(normalizeLayerNameForCompare(normalizedBase))) {
-    return normalizedBase;
-  }
-
-  for (let index = 1; index <= layers.length + 1; index += 1) {
-    const candidate = `${normalizedBase} ${index}`;
-    if (!existing.has(normalizeLayerNameForCompare(candidate))) {
-      return candidate;
-    }
-  }
-
-  return `${normalizedBase} ${Date.now()}`;
-};
-
 const DEFAULT_LAYER_COLOR = "#ff7e36";
-
-const isValidPolygon = (points: Point[]) => {
-  if (points.length < 3) return false;
-  return points.some((point, index, collection) => {
-    if (index === 0) return false;
-    const previous = collection[index - 1];
-    return point.x !== previous.x || point.y !== previous.y;
-  });
-};
-
-const computePolygonBounds = (points: Point[]) => {
-  const xValues = points.map((point) => point.x);
-  const yValues = points.map((point) => point.y);
-  const left = Math.min(...xValues);
-  const top = Math.min(...yValues);
-  const right = Math.max(...xValues);
-  const bottom = Math.max(...yValues);
-
-  return {
-    x: left,
-    y: top,
-    width: Math.max(EDITOR_RULES.minShapeSize, right - left),
-    height: Math.max(EDITOR_RULES.minShapeSize, bottom - top),
-  };
-};
 
 export function useRectLayerEditor({
   hasMapImage,
@@ -359,25 +294,43 @@ export function useRectLayerEditor({
     [mapHeight, mapWidth, snapToGrid],
   );
 
+  const getPolygonLayerGeometry = useCallback(
+    (points: Point[]) => {
+      const clampedPoints = points.map((point) =>
+        clampPointToBounds(point, mapWidth, mapHeight),
+      );
+      const bounds = computePolygonBounds(clampedPoints);
+
+      return {
+        points: clampedPoints,
+        x: mapWidth
+          ? clamp(bounds.x, 0, Math.max(0, mapWidth - bounds.width))
+          : bounds.x,
+        y: mapHeight
+          ? clamp(bounds.y, 0, Math.max(0, mapHeight - bounds.height))
+          : bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      };
+    },
+    [mapHeight, mapWidth],
+  );
+
   const clampedLayers = useMemo(
     () =>
       !mapWidth || !mapHeight
         ? layers
         : layers.map((layer) => {
             if (layer.shape === "polygon" && layer.points && layer.points.length >= 3) {
-              const clampedPoints = layer.points.map((point) => ({
-                x: clamp(point.x, 0, mapWidth),
-                y: clamp(point.y, 0, mapHeight),
-              }));
-              const bounds = computePolygonBounds(clampedPoints);
+              const polygonLayer = getPolygonLayerGeometry(layer.points);
 
               return {
                 ...layer,
-                x: clamp(layer.x, 0, Math.max(0, mapWidth - bounds.width)),
-                y: clamp(layer.y, 0, Math.max(0, mapHeight - bounds.height)),
-                width: bounds.width,
-                height: bounds.height,
-                points: clampedPoints,
+                x: polygonLayer.x,
+                y: polygonLayer.y,
+                width: polygonLayer.width,
+                height: polygonLayer.height,
+                points: polygonLayer.points,
               };
             }
 
@@ -397,7 +350,7 @@ export function useRectLayerEditor({
               ),
             };
           }),
-    [layers, mapHeight, mapWidth],
+    [getPolygonLayerGeometry, layers, mapHeight, mapWidth],
   );
 
   const renameLayer = useCallback(
@@ -439,7 +392,14 @@ export function useRectLayerEditor({
   const createPolygonLayer = useCallback(
     (points: Point[]) => {
       if (!isValidPolygon(points) || points.length < 3) return null;
-      const bounds = computePolygonBounds(points);
+      const polygonGeometry = getPolygonLayerGeometry(points);
+
+      const bounds = {
+        x: polygonGeometry.x,
+        y: polygonGeometry.y,
+        width: polygonGeometry.width,
+        height: polygonGeometry.height,
+      };
       if (
         bounds.width < EDITOR_RULES.minShapeSize ||
         bounds.height < EDITOR_RULES.minShapeSize
@@ -452,20 +412,12 @@ export function useRectLayerEditor({
       const newLayer: Layer = {
         id: crypto.randomUUID(),
         name: layerName,
-        x: clamp(
-          bounds.x,
-          0,
-          Math.max(0, (mapWidth ?? bounds.x + bounds.width) - bounds.width),
-        ),
-        y: clamp(
-          bounds.y,
-          0,
-          Math.max(0, (mapHeight ?? bounds.y + bounds.height) - bounds.height),
-        ),
+        x: bounds.x,
+        y: bounds.y,
         width: bounds.width,
         height: bounds.height,
         shape: "polygon",
-        points,
+        points: polygonGeometry.points,
         color: DEFAULT_LAYER_COLOR,
         visible: true,
         content: layerName,
@@ -475,7 +427,7 @@ export function useRectLayerEditor({
       setSelectedId(newLayer.id);
       return newLayer.id;
     },
-    [clampedLayers, mapHeight, mapWidth],
+    [clampedLayers, getPolygonLayerGeometry],
   );
 
   const onCanvasPointerDown = useCallback(
@@ -658,10 +610,11 @@ export function useRectLayerEditor({
       const point = getLocalPoint(event);
       if (!point) return;
 
-      const clampedPoint = {
-        x: mapWidth ? clamp(point.x, 0, mapWidth) : point.x,
-        y: mapHeight ? clamp(point.y, 0, mapHeight) : point.y,
+      const snappedPoint = {
+        x: snapToGrid(point.x),
+        y: snapToGrid(point.y),
       };
+      const clampedPoint = clampPointToBounds(snappedPoint, mapWidth, mapHeight);
 
       const safeEdgeIndex = Math.max(
         0,
@@ -679,15 +632,11 @@ export function useRectLayerEditor({
             clampedPoint,
             ...currentLayer.points.slice(insertIndex),
           ];
-          const bounds = computePolygonBounds(nextPoints);
+          const nextGeometry = getPolygonLayerGeometry(nextPoints);
 
           return {
             ...currentLayer,
-            points: nextPoints,
-            x: bounds.x,
-            y: bounds.y,
-            width: bounds.width,
-            height: bounds.height,
+            ...nextGeometry,
           };
         }),
       );
@@ -701,15 +650,155 @@ export function useRectLayerEditor({
         startY: clampedPoint.y,
       });
     },
-    [getLocalPoint, mapHeight, mapWidth],
+    [getLocalPoint, getPolygonLayerGeometry, mapHeight, mapWidth, snapToGrid],
   );
 
-  useEffect(() => {
-    if (!interaction) return;
+  const updatePolygonNodeByInteraction = useCallback(
+    (
+      interactionState: Extract<Interaction, { type: "polygon-node-dragging" }>,
+      point: Point,
+    ) => {
+      const clampedPoint = clampPointToBounds(
+        {
+          x: snapToGrid(point.x),
+          y: snapToGrid(point.y),
+        },
+        mapWidth,
+        mapHeight,
+      );
 
-    const onPointerMove = (event: globalThis.PointerEvent) => {
+      setLayers((prev) =>
+        prev.map((layer) => {
+          if (layer.id !== interactionState.layerId || !layer.points) return layer;
+
+          const nextPoints = layer.points.map((layerPoint, index) => {
+            if (index !== interactionState.nodeIndex) return layerPoint;
+            return clampedPoint;
+          });
+          const nextGeometry = getPolygonLayerGeometry(nextPoints);
+
+          return {
+            ...layer,
+            points: nextGeometry.points,
+            x: nextGeometry.x,
+            y: nextGeometry.y,
+            width: nextGeometry.width,
+            height: nextGeometry.height,
+          };
+        }),
+      );
+    },
+    [getPolygonLayerGeometry, mapHeight, mapWidth, snapToGrid],
+  );
+
+  const updateLayerDragByInteraction = useCallback(
+    (
+      interactionState: Extract<Interaction, { type: "dragging" }>,
+      point: Point,
+    ) => {
+      const dx = point.x - interactionState.startX;
+      const dy = point.y - interactionState.startY;
+
+      setLayers((prev) =>
+        prev.map((layer) => {
+          if (layer.id !== interactionState.layerId) return layer;
+          const nextX = clampInsideMapX(
+            snapToGrid(interactionState.originX + dx),
+            layer.width,
+          );
+          const nextY = clampInsideMapY(
+            snapToGrid(interactionState.originY + dy),
+            layer.height,
+          );
+          const moveX = nextX - layer.x;
+          const moveY = nextY - layer.y;
+
+          if (layer.shape !== "polygon" || !layer.points) {
+            return { ...layer, x: nextX, y: nextY };
+          }
+
+          return {
+            ...layer,
+            x: nextX,
+            y: nextY,
+            points: layer.points.map((vertex) => ({
+              x: vertex.x + moveX,
+              y: vertex.y + moveY,
+            })),
+          };
+        }),
+      );
+    },
+    [clampInsideMapX, clampInsideMapY, snapToGrid],
+  );
+
+  const updateLayerResizeByInteraction = useCallback(
+    (
+      interactionState: Extract<Interaction, { type: "resizing" }>,
+      point: Point,
+    ) => {
+      const dx = point.x - interactionState.startX;
+      const dy = point.y - interactionState.startY;
+
+      setLayers((prev) =>
+        prev.map((layer) => {
+          if (layer.id !== interactionState.layerId) return layer;
+          const resized = getResizedRectByHandle(
+            interactionState.originX,
+            interactionState.originY,
+            interactionState.originWidth,
+            interactionState.originHeight,
+            interactionState.handle,
+            dx,
+            dy,
+          );
+
+          return { ...layer, ...resized };
+        }),
+      );
+    },
+    [getResizedRectByHandle],
+  );
+
+  const finalizeDrawingLayer = useCallback(() => {
+    if (!interaction || interaction.type !== "drawing") return;
+
+    const draft = normalizeRect(
+      interaction.startX,
+      interaction.startY,
+      interaction.currentX,
+      interaction.currentY,
+    );
+    const snappedDraft = snapRect(draft);
+
+    if (
+      snappedDraft.width >= EDITOR_RULES.minShapeSize &&
+      snappedDraft.height >= EDITOR_RULES.minShapeSize
+    ) {
+      const layerName = makeUniqueLayerName(clampedLayers, "Rectangle");
+      const newLayer: Layer = {
+        id: crypto.randomUUID(),
+        name: layerName,
+        x: snappedDraft.left,
+        y: snappedDraft.top,
+        width: snappedDraft.width,
+        height: snappedDraft.height,
+        shape: "rect",
+        color: DEFAULT_LAYER_COLOR,
+        visible: true,
+        content: layerName,
+      };
+
+      setLayers((prev) => [...prev, newLayer]);
+      setSelectedId(newLayer.id);
+      setTool("select");
+    }
+  }, [clampedLayers, interaction, setTool, snapRect]);
+
+  const handleInteractionPointerMove = useCallback(
+    (event: globalThis.PointerEvent) => {
       const point = getLocalPoint(event);
-      if (!point) return;
+      if (!interaction || !point) return;
 
       if (interaction.type === "drawing") {
         setInteraction((current) =>
@@ -730,140 +819,29 @@ export function useRectLayerEditor({
       }
 
       if (interaction.type === "polygon-node-dragging") {
-        setLayers((prev) =>
-          prev.map((layer) => {
-            if (layer.id !== interaction.layerId || !layer.points) return layer;
-
-            const nextPoints = layer.points.map((layerPoint, index) => {
-              if (index !== interaction.nodeIndex) return layerPoint;
-
-              const nextPoint = {
-                x: snapToGrid(point.x),
-                y: snapToGrid(point.y),
-              };
-
-              const boundedPoint = {
-                x: mapWidth ? clamp(nextPoint.x, 0, mapWidth) : nextPoint.x,
-                y: mapHeight ? clamp(nextPoint.y, 0, mapHeight) : nextPoint.y,
-              };
-
-              return boundedPoint;
-            });
-
-            const bounds = computePolygonBounds(nextPoints);
-
-            return {
-              ...layer,
-              points: nextPoints,
-              x: bounds.x,
-              y: bounds.y,
-              width: bounds.width,
-              height: bounds.height,
-            };
-          }),
-        );
+        updatePolygonNodeByInteraction(interaction, point);
         return;
       }
 
       if (interaction.type === "dragging") {
-        const dx = point.x - interaction.startX;
-        const dy = point.y - interaction.startY;
-        setLayers((prev) =>
-          prev.map((layer) => {
-            if (layer.id !== interaction.layerId) return layer;
-            const nextX = clampInsideMapX(
-              snapToGrid(interaction.originX + dx),
-              layer.width,
-            );
-            const nextY = clampInsideMapY(
-              snapToGrid(interaction.originY + dy),
-              layer.height,
-            );
-            const moveX = nextX - layer.x;
-            const moveY = nextY - layer.y;
-            if (layer.shape !== "polygon" || !layer.points) {
-              return { ...layer, x: nextX, y: nextY };
-            }
-
-            return {
-              ...layer,
-              x: nextX,
-              y: nextY,
-              points: layer.points.map((point) => ({
-                x: point.x + moveX,
-                y: point.y + moveY,
-              })),
-            };
-          }),
-        );
+        updateLayerDragByInteraction(interaction, point);
         return;
       }
 
-      const dx = point.x - interaction.startX;
-      const dy = point.y - interaction.startY;
-      setLayers((prev) =>
-        prev.map((layer) => {
-          if (layer.id !== interaction.layerId) return layer;
-          const resized = getResizedRectByHandle(
-            interaction.originX,
-            interaction.originY,
-            interaction.originWidth,
-            interaction.originHeight,
-            interaction.handle,
-            dx,
-            dy,
-          );
+      updateLayerResizeByInteraction(interaction, point);
+    },
+    [
+      getLocalPoint,
+      interaction,
+      updateLayerDragByInteraction,
+      updateLayerResizeByInteraction,
+      updatePolygonNodeByInteraction,
+    ],
+  );
 
-          return { ...layer, ...resized };
-        }),
-      );
-    };
-
-    const onPointerUp = () => {
-      if (interaction.type === "drawing") {
-        const draft = normalizeRect(
-          interaction.startX,
-          interaction.startY,
-          interaction.currentX,
-          interaction.currentY,
-        );
-        const snappedDraft = snapRect(draft);
-
-        if (
-          snappedDraft.width >= EDITOR_RULES.minShapeSize &&
-          snappedDraft.height >= EDITOR_RULES.minShapeSize
-        ) {
-          const layerName = makeUniqueLayerName(
-            clampedLayers,
-            "Rectangle",
-          );
-          const newLayer: Layer = {
-            id: crypto.randomUUID(),
-            name: layerName,
-            x: snappedDraft.left,
-            y: snappedDraft.top,
-            width: snappedDraft.width,
-            height: snappedDraft.height,
-            shape: "rect",
-            color: DEFAULT_LAYER_COLOR,
-            visible: true,
-            content: layerName,
-          };
-
-          setLayers((prev) => [...prev, newLayer]);
-          setSelectedId(newLayer.id);
-          setTool("select");
-        }
-      }
-      if (interaction.type === "polygon-drawing") {
-        return;
-      }
-
-      setInteraction(null);
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (interaction.type !== "polygon-drawing") return;
+  const finalizePolygonDrawingLayer = useCallback(
+    (event: globalThis.KeyboardEvent) => {
+      if (interaction?.type !== "polygon-drawing") return;
 
       if (event.key === "Escape") {
         setInteraction(null);
@@ -883,30 +861,36 @@ export function useRectLayerEditor({
       }
 
       setInteraction(null);
-    };
+    },
+    [createPolygonLayer, interaction, setTool],
+  );
 
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
-    window.addEventListener("keydown", onKeyDown);
+  const handleInteractionPointerUp = useCallback(() => {
+    if (!interaction) return;
+
+    if (interaction.type === "drawing") {
+      finalizeDrawingLayer();
+    }
+
+    if (interaction.type === "polygon-drawing") {
+      return;
+    }
+
+    setInteraction(null);
+  }, [finalizeDrawingLayer, interaction]);
+
+  useEffect(() => {
+    if (!interaction) return;
+
+    window.addEventListener("pointermove", handleInteractionPointerMove);
+    window.addEventListener("pointerup", handleInteractionPointerUp);
+    window.addEventListener("keydown", finalizePolygonDrawingLayer);
     return () => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointermove", handleInteractionPointerMove);
+      window.removeEventListener("pointerup", handleInteractionPointerUp);
+      window.removeEventListener("keydown", finalizePolygonDrawingLayer);
     };
-  }, [
-    clampInsideMapX,
-    clampInsideMapY,
-    getLocalPoint,
-    interaction,
-    clampedLayers,
-    getResizedRectByHandle,
-    snapRect,
-    snapToGrid,
-    setTool,
-    createPolygonLayer,
-    mapWidth,
-    mapHeight,
-  ]);
+  }, [handleInteractionPointerMove, handleInteractionPointerUp, finalizePolygonDrawingLayer, interaction]);
 
   const interactionDraftRect = useMemo(
     () =>

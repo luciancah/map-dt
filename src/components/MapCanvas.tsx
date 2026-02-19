@@ -2,12 +2,14 @@
 
 import React from "react";
 import { EDITOR_RULES } from "@/lib/map-editor/rules";
+import { withOpacity } from "@/lib/map-editor/colors";
 import type {
   DraftRect,
   DraftPolygon,
   Layer,
   MapImage,
   ResizeHandle,
+  Point,
 } from "@/lib/map-editor/types";
 import { Button } from "@/components/ui/button";
 
@@ -41,63 +43,6 @@ type MapCanvasProps = {
 };
 
 const DEFAULT_LAYER_OPACITY = 0.35;
-
-const toChannel = (channel: string) => Number.parseInt(channel, 16);
-
-const parseHexColor = (value: string) => {
-  const normalized = value.trim();
-  if (!normalized.startsWith("#")) return null;
-
-  const hex = normalized.slice(1);
-  if (!/^[0-9a-fA-F]+$/.test(hex)) return null;
-
-  if (hex.length === 3) {
-    const expanded = `${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`;
-    return {
-      r: toChannel(expanded.slice(0, 2)),
-      g: toChannel(expanded.slice(2, 4)),
-      b: toChannel(expanded.slice(4, 6)),
-    };
-  }
-
-  if (hex.length !== 6) return null;
-
-  return {
-    r: toChannel(hex.slice(0, 2)),
-    g: toChannel(hex.slice(2, 4)),
-    b: toChannel(hex.slice(4, 6)),
-  };
-};
-
-const parseRgbColor = (value: string) => {
-  const match = value.match(
-    /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*[\d.]+)?\s*\)$/i,
-  );
-
-  if (!match) return null;
-
-  return {
-    r: Number.parseInt(match[1], 10),
-    g: Number.parseInt(match[2], 10),
-    b: Number.parseInt(match[3], 10),
-  };
-};
-
-const parseRGB = (value: string) => {
-  return (
-    parseRgbColor(value) ??
-    parseHexColor(value) ?? {
-      r: 0,
-      g: 0,
-      b: 0,
-    }
-  );
-};
-
-const withOpacity = (value: string, alpha: number) => {
-  const { r, g, b } = parseRGB(value);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
 
 export function MapCanvas({
   frameRef,
@@ -134,6 +79,141 @@ export function MapCanvas({
     s: "left-1/2 -bottom-2 -translate-x-1/2 cursor-ns-resize",
     sw: "-left-2 -bottom-2 cursor-nesw-resize",
     w: "-left-2 top-1/2 -translate-y-1/2 cursor-ew-resize",
+  };
+
+  const getColorPair = (color: string) => ({
+    fill: withOpacity(color, DEFAULT_LAYER_OPACITY),
+    border: withOpacity(color, 0.9),
+  });
+
+  const renderPolygonEdgeControls = (
+    layer: Layer,
+    layerPoints: { x: number; y: number }[],
+    hoveredPolygonEdgeIndex: number | null,
+    isLayerSelected: boolean,
+  ) => {
+    const edgeElements: React.ReactNode[] = [];
+
+    if (!isLayerSelected) {
+      return edgeElements;
+    }
+
+    layerPoints.forEach((point, index) => {
+      const nextPoint = layerPoints[(index + 1) % layerPoints.length];
+      const startX = (point.x - layer.x) * displayScale;
+      const startY = (point.y - layer.y) * displayScale;
+      const endX = (nextPoint.x - layer.x) * displayScale;
+      const endY = (nextPoint.y - layer.y) * displayScale;
+      const isHovered = hoveredPolygonEdgeIndex === index;
+
+      edgeElements.push(
+        <React.Fragment key={`${layer.id}-edge-${index}`}>
+          <line
+            x1={startX}
+            y1={startY}
+            x2={endX}
+            y2={endY}
+            stroke="rgba(249, 115, 22, 0.02)"
+            strokeWidth={14}
+            onPointerEnter={() =>
+              setHoveredPolygonEdge({
+                layerId: layer.id,
+                edgeIndex: index,
+              })
+            }
+            onPointerLeave={() =>
+              setHoveredPolygonEdge((current) =>
+                current &&
+                current.layerId === layer.id &&
+                current.edgeIndex === index
+                  ? null
+                  : current,
+              )
+            }
+            onPointerDown={(event) =>
+              onPolygonEdgePointerDown(event, layer, index)
+            }
+          />
+          {isHovered ? (
+            <line
+              x1={startX}
+              y1={startY}
+              x2={endX}
+              y2={endY}
+              stroke="rgba(249, 115, 22, 0.6)"
+              strokeWidth={2}
+            />
+          ) : null}
+        </React.Fragment>,
+      );
+    });
+
+    layerPoints.forEach((point, index) => {
+      const nextPoint = layerPoints[(index + 1) % layerPoints.length];
+      const midX =
+        ((point.x - layer.x + (nextPoint.x - layer.x)) * displayScale) / 2;
+      const midY =
+        ((point.y - layer.y + (nextPoint.y - layer.y)) * displayScale) / 2;
+      if (hoveredPolygonEdgeIndex !== index) return;
+
+      edgeElements.push(
+        <button
+          type="button"
+          key={`${layer.id}-edge-action-${index}`}
+          onPointerEnter={() =>
+            setHoveredPolygonEdge({
+              layerId: layer.id,
+              edgeIndex: index,
+            })
+          }
+          onPointerLeave={() =>
+            setHoveredPolygonEdge((current) =>
+              current &&
+              current.layerId === layer.id &&
+              current.edgeIndex === index
+                ? null
+                : current
+            )
+          }
+          onPointerDown={(event) =>
+            onPolygonEdgePointerDown(event, layer, index)
+          }
+          className="absolute z-10 h-6 w-6 rounded-full border border-orange-100 bg-white/90 text-[11px] font-bold text-orange-800 shadow"
+          style={{
+            left: `${midX}px`,
+            top: `${midY}px`,
+            transform: "translate(-50%, -50%)",
+          }}
+          aria-label={`${layer.name} edge add point`}
+        >
+          +
+        </button>,
+      );
+    });
+
+    return edgeElements;
+  };
+
+  const renderPolygonNodes = (layer: Layer, layerPoints: Point[]) => {
+    return layerPoints.map((point, index) => {
+      const nodeX = (point.x - layer.x) * displayScale;
+      const nodeY = (point.y - layer.y) * displayScale;
+
+      return (
+        <button
+          type="button"
+          key={`${layer.id}-node-${index}`}
+          onPointerDown={(event) => onPolygonNodePointerDown(event, layer, index)}
+          className="absolute h-3 w-3 rounded-full border border-white bg-orange-400 shadow"
+          style={{
+            left: `${nodeX}px`,
+            top: `${nodeY}px`,
+            transform: "translate(-50%, -50%)",
+          }}
+          aria-label={`${layer.name} node ${index + 1}`}
+        />
+      );
+    });
   };
 
   return (
@@ -192,6 +272,7 @@ export function MapCanvas({
                   ? hoveredPolygonEdge.edgeIndex
                   : null;
               const isLayerSelected = layer.id === selectedId;
+              const colors = getColorPair(layer.color);
 
               return (
                 <div
@@ -219,132 +300,19 @@ export function MapCanvas({
                   >
                     <polygon
                       points={polygonPoints}
-                      fill={fillColor}
-                      stroke={borderColor}
+                      fill={colors.fill}
+                      stroke={colors.border}
                       strokeWidth={1}
                     />
-                    {isLayerSelected
-                      ? layerPoints.map((point, index) => {
-                          const nextPoint = layerPoints[(index + 1) % layerPoints.length];
-                          const startX = (point.x - layer.x) * displayScale;
-                          const startY = (point.y - layer.y) * displayScale;
-                          const endX = (nextPoint.x - layer.x) * displayScale;
-                          const endY = (nextPoint.y - layer.y) * displayScale;
-                          const isHovered = hoveredPolygonEdgeIndex === index;
-
-                          return (
-                            <React.Fragment key={`${layer.id}-edge-${index}`}>
-                              <line
-                                x1={startX}
-                                y1={startY}
-                                x2={endX}
-                                y2={endY}
-                                stroke="rgba(249, 115, 22, 0.02)"
-                                strokeWidth={14}
-                                onPointerEnter={() =>
-                                  setHoveredPolygonEdge({
-                                    layerId: layer.id,
-                                    edgeIndex: index,
-                                  })
-                                }
-                                onPointerLeave={() =>
-                                  setHoveredPolygonEdge((current) =>
-                                    current &&
-                                    current.layerId === layer.id &&
-                                    current.edgeIndex === index
-                                      ? null
-                                      : current,
-                                  )
-                                }
-                                onPointerDown={(event) =>
-                                  onPolygonEdgePointerDown(event, layer, index)
-                                }
-                              />
-                              {isHovered ? (
-                                <line
-                                  x1={startX}
-                                  y1={startY}
-                                  x2={endX}
-                                  y2={endY}
-                                  stroke="rgba(249, 115, 22, 0.6)"
-                                  strokeWidth={2}
-                                />
-                              ) : null}
-                            </React.Fragment>
-                          );
-                        })
-                      : null}
+                    {renderPolygonEdgeControls(
+                      layer,
+                      layerPoints,
+                      hoveredPolygonEdgeIndex,
+                      isLayerSelected,
+                    )}
                   </svg>
                   {isLayerSelected
-                    ? layerPoints.map((point, index) => {
-                        const nodeX = (point.x - layer.x) * displayScale;
-                        const nodeY = (point.y - layer.y) * displayScale;
-
-                        return (
-                          <button
-                            type="button"
-                            key={`${layer.id}-node-${index}`}
-                            onPointerDown={(event) =>
-                              onPolygonNodePointerDown(event, layer, index)
-                            }
-                            className="absolute h-3 w-3 rounded-full border border-white bg-orange-400 shadow"
-                            style={{
-                              left: `${nodeX}px`,
-                              top: `${nodeY}px`,
-                              transform: "translate(-50%, -50%)",
-                            }}
-                            aria-label={`${layer.name} node ${index + 1}`}
-                          />
-                        );
-                      })
-                    : null}
-                  {isLayerSelected && layerPoints.length >= 3
-                    ? layerPoints.map((point, index) => {
-                        const nextPoint = layerPoints[(index + 1) % layerPoints.length];
-                        const midX =
-                          ((point.x - layer.x + (nextPoint.x - layer.x)) * displayScale) /
-                          2;
-                        const midY =
-                          ((point.y - layer.y + (nextPoint.y - layer.y)) * displayScale) /
-                          2;
-                        const isHovered = hoveredPolygonEdgeIndex === index;
-
-                        if (!isHovered) return null;
-
-                        return (
-                          <button
-                            type="button"
-                            key={`${layer.id}-edge-action-${index}`}
-                            onPointerEnter={() =>
-                              setHoveredPolygonEdge({
-                                layerId: layer.id,
-                                edgeIndex: index,
-                              })
-                            }
-                            onPointerLeave={() =>
-                              setHoveredPolygonEdge((current) =>
-                                current &&
-                                current.layerId === layer.id &&
-                                current.edgeIndex === index
-                                  ? null
-                                  : current
-                              )
-                            }
-                            onPointerDown={(event) =>
-                              onPolygonEdgePointerDown(event, layer, index)
-                            }
-                            className="absolute z-10 h-6 w-6 rounded-full border border-orange-100 bg-white/90 text-[11px] font-bold text-orange-800 shadow"
-                            style={{
-                              left: `${midX}px`,
-                              top: `${midY}px`,
-                              transform: "translate(-50%, -50%)",
-                            }}
-                            aria-label={`${layer.name} edge add point`}
-                          >
-                            +
-                          </button>
-                        );
-                      })
+                    ? renderPolygonNodes(layer, layerPoints)
                     : null}
                   <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
                     {layer.content}

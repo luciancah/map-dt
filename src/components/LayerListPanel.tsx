@@ -27,6 +27,9 @@ export function LayerListPanel({
   onMoveLayer,
 }: LayerListPanelProps) {
   const visibleLayers = layers.slice().reverse();
+  const layerZIndexById = new Map(
+    layers.map((layer, index) => [layer.id, index + 1] as const),
+  );
 
   return (
     <Card>
@@ -69,7 +72,7 @@ export function LayerListPanel({
                   {layer.name}
                 </span>
                 <Badge className="text-[10px]">
-                  z: {layers.findIndex((item) => item.id === layer.id) + 1}
+                  z: {layerZIndexById.get(layer.id) ?? ""}
                 </Badge>
                 <Button
                   variant="outline"
