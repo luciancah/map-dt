@@ -142,6 +142,7 @@ export default function Home() {
     renameLayer,
     setLayerColor,
     convertRectToPolygon,
+    insertPolygonPointOnEdge,
     startPolygonNodeDrag,
     startResize,
     selectLayer,
@@ -286,6 +287,7 @@ export default function Home() {
             draftPolygon={interactionDraftPolygon}
             onPointerDown={onCanvasPointerDown}
             onPolygonNodePointerDown={startPolygonNodeDrag}
+            onPolygonEdgePointerDown={insertPolygonPointOnEdge}
             onResizePointerDown={startResize}
             gridStepPx={gridStepPx}
             displayWidth={mapDisplaySize.width}

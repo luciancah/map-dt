@@ -35,6 +35,11 @@ type UseRectLayerEditor = {
     layer: Layer,
     nodeIndex: number,
   ) => void;
+  insertPolygonPointOnEdge: (
+    event: ReactPointerEvent<SVGLineElement | HTMLButtonElement>,
+    layer: Layer,
+    edgeIndex: number,
+  ) => void;
   startResize: (
     event: ReactPointerEvent<HTMLButtonElement>,
     layer: Layer,
@@ -640,6 +645,65 @@ export function useRectLayerEditor({
     [getLocalPoint],
   );
 
+  const insertPolygonPointOnEdge = useCallback(
+    (
+      event: ReactPointerEvent<SVGLineElement | HTMLButtonElement>,
+      layer: Layer,
+      edgeIndex: number,
+    ) => {
+      event.stopPropagation();
+      if (event.button !== 0) return;
+      if (layer.shape !== "polygon" || !layer.points) return;
+
+      const point = getLocalPoint(event);
+      if (!point) return;
+
+      const clampedPoint = {
+        x: mapWidth ? clamp(point.x, 0, mapWidth) : point.x,
+        y: mapHeight ? clamp(point.y, 0, mapHeight) : point.y,
+      };
+
+      const safeEdgeIndex = Math.max(
+        0,
+        Math.min(edgeIndex, layer.points.length - 1),
+      );
+      const insertIndex = safeEdgeIndex + 1;
+
+      setLayers((prev) =>
+        prev.map((currentLayer) => {
+          if (currentLayer.id !== layer.id) return currentLayer;
+          if (!currentLayer.points) return currentLayer;
+
+          const nextPoints = [
+            ...currentLayer.points.slice(0, insertIndex),
+            clampedPoint,
+            ...currentLayer.points.slice(insertIndex),
+          ];
+          const bounds = computePolygonBounds(nextPoints);
+
+          return {
+            ...currentLayer,
+            points: nextPoints,
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+          };
+        }),
+      );
+
+      setSelectedId(layer.id);
+      setInteraction({
+        type: "polygon-node-dragging",
+        layerId: layer.id,
+        nodeIndex: insertIndex,
+        startX: clampedPoint.x,
+        startY: clampedPoint.y,
+      });
+    },
+    [getLocalPoint, mapHeight, mapWidth],
+  );
+
   useEffect(() => {
     if (!interaction) return;
 
@@ -957,6 +1021,7 @@ export function useRectLayerEditor({
     renameLayer,
     setLayerColor,
     startPolygonNodeDrag,
+    insertPolygonPointOnEdge,
     startResize,
     selectLayer,
     toggleLayerVisible,
