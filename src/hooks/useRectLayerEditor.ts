@@ -98,6 +98,8 @@ const makeUniqueLayerName = (
   return `${normalizedBase} ${Date.now()}`;
 };
 
+const DEFAULT_LAYER_COLOR = "#ff7e36";
+
 export function useRectLayerEditor({
   hasMapImage,
   mapWidth,
@@ -529,7 +531,7 @@ export function useRectLayerEditor({
             y: snappedDraft.top,
             width: snappedDraft.width,
             height: snappedDraft.height,
-            color: "rgba(255, 126, 54, 0.35)",
+            color: DEFAULT_LAYER_COLOR,
             visible: true,
             content: layerName,
           };

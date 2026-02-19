@@ -26,6 +26,65 @@ type MapCanvasProps = {
   displayScale?: number;
 };
 
+const DEFAULT_LAYER_OPACITY = 0.35;
+
+const toChannel = (channel: string) => Number.parseInt(channel, 16);
+
+const parseHexColor = (value: string) => {
+  const normalized = value.trim();
+  if (!normalized.startsWith("#")) return null;
+
+  const hex = normalized.slice(1);
+  if (!/^[0-9a-fA-F]+$/.test(hex)) return null;
+
+  if (hex.length === 3) {
+    const expanded = `${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`;
+    return {
+      r: toChannel(expanded.slice(0, 2)),
+      g: toChannel(expanded.slice(2, 4)),
+      b: toChannel(expanded.slice(4, 6)),
+    };
+  }
+
+  if (hex.length !== 6) return null;
+
+  return {
+    r: toChannel(hex.slice(0, 2)),
+    g: toChannel(hex.slice(2, 4)),
+    b: toChannel(hex.slice(4, 6)),
+  };
+};
+
+const parseRgbColor = (value: string) => {
+  const match = value.match(
+    /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*[\d.]+)?\s*\)$/i,
+  );
+
+  if (!match) return null;
+
+  return {
+    r: Number.parseInt(match[1], 10),
+    g: Number.parseInt(match[2], 10),
+    b: Number.parseInt(match[3], 10),
+  };
+};
+
+const parseRGB = (value: string) => {
+  return (
+    parseRgbColor(value) ??
+    parseHexColor(value) ?? {
+      r: 0,
+      g: 0,
+      b: 0,
+    }
+  );
+};
+
+const withOpacity = (value: string, alpha: number) => {
+  const { r, g, b } = parseRGB(value);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 export function MapCanvas({
   frameRef,
   mapImage,
@@ -89,21 +148,26 @@ export function MapCanvas({
 
           {layers.map((layer) => {
             if (!layer.visible) return null;
+
+            const fillColor = withOpacity(layer.color, DEFAULT_LAYER_OPACITY);
+            const borderColor = withOpacity(layer.color, 0.9);
+
             return (
               <div
                 key={layer.id}
                 data-layer-id={layer.id}
-                className={`absolute border ${
-                  layer.id === selectedId
-                    ? "border-orange-600 ring-2 ring-orange-300"
-                    : "border-orange-500/80"
+                className={`absolute ${
+                  layer.id === selectedId ? "ring-2 ring-white/80" : ""
                 }`}
                 style={{
                   left: `${layer.x * displayScale}px`,
                   top: `${layer.y * displayScale}px`,
                   width: `${layer.width * displayScale}px`,
                   height: `${layer.height * displayScale}px`,
-                  background: layer.color,
+                  background: fillColor,
+                  borderColor,
+                  borderWidth: "1px",
+                  borderStyle: "solid",
                 }}
               >
                 <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
