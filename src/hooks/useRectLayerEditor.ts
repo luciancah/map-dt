@@ -35,6 +35,7 @@ type UseRectLayerEditor = {
   selectLayer: (layerId: string | null) => void;
   toggleLayerVisible: (layerId: string) => void;
   removeLayer: (layerId: string) => void;
+  moveLayer: (layerId: string, direction: "up" | "down") => void;
   clearAllLayers: () => void;
 };
 
@@ -590,6 +591,23 @@ export function useRectLayerEditor({
     }
   };
 
+  const moveLayer = (layerId: string, direction: "up" | "down") => {
+    setLayers((prev) => {
+      const currentIndex = prev.findIndex((layer) => layer.id === layerId);
+      if (currentIndex === -1) return prev;
+
+      const nextIndex =
+        direction === "up" ? currentIndex + 1 : currentIndex - 1;
+
+      if (nextIndex < 0 || nextIndex >= prev.length) return prev;
+
+      const nextLayers = [...prev];
+      const [target] = nextLayers.splice(currentIndex, 1);
+      nextLayers.splice(nextIndex, 0, target);
+      return nextLayers;
+    });
+  };
+
   const clearAllLayers = () => {
     setLayers([]);
     setSelectedId(null);
@@ -608,6 +626,7 @@ export function useRectLayerEditor({
     startResize,
     selectLayer,
     toggleLayerVisible,
+    moveLayer,
     removeLayer,
     clearAllLayers,
   };

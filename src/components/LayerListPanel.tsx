@@ -6,6 +6,7 @@ type LayerListPanelProps = {
   onSelectLayer: (layerId: string) => void;
   onToggleLayerVisibility: (layerId: string) => void;
   onDeleteLayer: (layerId: string) => void;
+  onMoveLayer: (layerId: string, direction: "up" | "down") => void;
 };
 
 export function LayerListPanel({
@@ -14,7 +15,10 @@ export function LayerListPanel({
   onSelectLayer,
   onToggleLayerVisibility,
   onDeleteLayer,
+  onMoveLayer,
 }: LayerListPanelProps) {
+  const visibleLayers = layers.slice().reverse();
+
   return (
     <div>
       <h2 className="text-sm font-semibold text-stone-900">Layers</h2>
@@ -28,10 +32,11 @@ export function LayerListPanel({
             아직 레이어가 없습니다.
           </p>
         ) : (
-          layers
-            .slice()
-            .reverse()
-            .map((layer) => (
+          visibleLayers.map((layer, displayIndex) => {
+            const isTop = displayIndex === 0;
+            const isBottom = displayIndex === visibleLayers.length - 1;
+
+            return (
               <div
                 key={layer.id}
                 onClick={() => onSelectLayer(layer.id)}
@@ -48,10 +53,32 @@ export function LayerListPanel({
                     onSelectLayer(layer.id);
                   }
                 }}
-              >
+                >
                 <span className="truncate text-left text-sm font-medium text-stone-800">
                   {layer.name}
                 </span>
+                <button
+                  className="rounded border border-stone-300 px-2 py-1 text-xs text-stone-700 disabled:opacity-40"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onMoveLayer(layer.id, "up");
+                  }}
+                  disabled={isTop}
+                  aria-label="Move layer up"
+                >
+                  ▲
+                </button>
+                <button
+                  className="rounded border border-stone-300 px-2 py-1 text-xs text-stone-700 disabled:opacity-40"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onMoveLayer(layer.id, "down");
+                  }}
+                  disabled={isBottom}
+                  aria-label="Move layer down"
+                >
+                  ▼
+                </button>
                 <button
                   className="ml-auto rounded border border-stone-300 px-2 py-1 text-xs text-stone-700 hover:bg-stone-200"
                   onClick={(event) => {
@@ -71,7 +98,8 @@ export function LayerListPanel({
                   삭제
                 </button>
               </div>
-            ))
+            );
+          })
         )}
       </div>
     </div>

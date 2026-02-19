@@ -124,6 +124,7 @@ export default function Home() {
     startResize,
     selectLayer,
     toggleLayerVisible,
+    moveLayer,
     removeLayer,
     clearAllLayers,
   } = useRectLayerEditor({
@@ -280,6 +281,7 @@ export default function Home() {
               selectedId={selectedId}
               onSelectLayer={handleLayerSelect}
               onToggleLayerVisibility={toggleLayerVisible}
+              onMoveLayer={moveLayer}
               onDeleteLayer={removeLayer}
             />
           </div>
