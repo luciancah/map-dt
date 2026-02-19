@@ -27,6 +27,7 @@ type UseRectLayerEditor = {
   interactionDraftRect: DraftRect | null;
   onCanvasPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   renameLayer: (layerId: string, nextName: string) => boolean;
+  setLayerColor: (layerId: string, nextColor: string) => void;
   startResize: (
     event: ReactPointerEvent<HTMLButtonElement>,
     layer: Layer,
@@ -368,6 +369,14 @@ export function useRectLayerEditor({
     [clampedLayers],
   );
 
+  const setLayerColor = useCallback((layerId: string, nextColor: string) => {
+    setLayers((prev) =>
+      prev.map((layer) =>
+        layer.id === layerId ? { ...layer, color: nextColor } : layer,
+      ),
+    );
+  }, []);
+
   const onCanvasPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
@@ -623,6 +632,7 @@ export function useRectLayerEditor({
     interactionDraftRect,
     onCanvasPointerDown,
     renameLayer,
+    setLayerColor,
     startResize,
     selectLayer,
     toggleLayerVisible,

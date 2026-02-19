@@ -98,6 +98,14 @@ export default function Home() {
     };
   });
 
+  const layerColorPresets = [
+    "#f97316",
+    "#22c55e",
+    "#3b82f6",
+    "#8b5cf6",
+    "#ef4444",
+  ];
+
   const mapDisplaySize = useMemo(() => {
     const baseWidth = mapImage?.width ?? EDITOR_RULES.fallbackMapWidth;
     const baseHeight = mapImage?.height ?? EDITOR_RULES.fallbackMapHeight;
@@ -131,6 +139,7 @@ export default function Home() {
     interactionDraftRect,
     onCanvasPointerDown,
     renameLayer,
+    setLayerColor,
     startResize,
     selectLayer,
     toggleLayerVisible,
@@ -174,6 +183,11 @@ export default function Home() {
 
   const handleLayerSelect = (layerId: string) => {
     selectLayer(layerId);
+  };
+
+  const handleLayerColorChange = (nextColor: string) => {
+    if (!selectedLayer) return;
+    setLayerColor(selectedLayer.id, nextColor);
   };
 
   const resetMapAndLayers = () => {
@@ -295,7 +309,7 @@ export default function Home() {
             <Card>
               <CardHeader>
                 <CardTitle>선택 레이어</CardTitle>
-                <CardDescription>레이어 이름 수정</CardDescription>
+                <CardDescription>레이어 속성 수정</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 <form
@@ -325,6 +339,33 @@ export default function Home() {
                   </div>
                   <span className="text-xs text-red-600">{layerNameError}</span>
                 </form>
+
+                <div className="space-y-1">
+                  <Label htmlFor={`layer-color-${selectedLayer.id}`}>레이어 색상</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id={`layer-color-${selectedLayer.id}`}
+                      type="color"
+                      value={selectedLayer.color}
+                      onChange={(event) =>
+                        handleLayerColorChange(event.target.value)
+                      }
+                      className="h-9 w-20 cursor-pointer p-0"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {layerColorPresets.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          aria-label={`Set color ${preset}`}
+                          className="h-7 w-7 rounded-full border border-stone-300"
+                          style={{ backgroundColor: preset }}
+                          onClick={() => handleLayerColorChange(preset)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="text-xs text-stone-700">
                   <p className="text-sm font-semibold text-stone-900">
