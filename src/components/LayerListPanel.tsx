@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import type { Layer } from "@/lib/map-editor/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,35 @@ export function LayerListPanel({
     layers.map((layer, index) => [layer.id, index + 1] as const),
   );
 
+  const handleSelectLayer = (layerId: string) => {
+    onSelectLayer(layerId);
+  };
+
+  const handleMoveLayer = (
+    event: MouseEvent<HTMLButtonElement>,
+    layerId: string,
+    direction: "up" | "down",
+  ) => {
+    event.stopPropagation();
+    onMoveLayer(layerId, direction);
+  };
+
+  const handleToggleVisibility = (
+    event: MouseEvent<HTMLButtonElement>,
+    layerId: string,
+  ) => {
+    event.stopPropagation();
+    onToggleLayerVisibility(layerId);
+  };
+
+  const handleDeleteLayer = (
+    event: MouseEvent<HTMLButtonElement>,
+    layerId: string,
+  ) => {
+    event.stopPropagation();
+    onDeleteLayer(layerId);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -53,7 +83,7 @@ export function LayerListPanel({
             return (
               <div
                 key={layer.id}
-                onClick={() => onSelectLayer(layer.id)}
+                onClick={() => handleSelectLayer(layer.id)}
                 className={`flex items-center gap-2 rounded-md border px-2 py-2 ${
                   layer.id === selectedId
                     ? "border-orange-300 bg-orange-50"
@@ -64,7 +94,7 @@ export function LayerListPanel({
                 aria-label={`${layer.name} 레이어 선택`}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
-                    onSelectLayer(layer.id);
+                    handleSelectLayer(layer.id);
                   }
                 }}
               >
@@ -74,53 +104,60 @@ export function LayerListPanel({
                 <Badge className="text-[10px]">
                   z: {layerZIndexById.get(layer.id) ?? ""}
                 </Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded disabled:opacity-40"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onMoveLayer(layer.id, "up");
-                  }}
-                  disabled={isTop}
-                  aria-label="Move layer up"
-                >
-                  ▲
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded disabled:opacity-40"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onMoveLayer(layer.id, "down");
-                  }}
-                  disabled={isBottom}
-                  aria-label="Move layer down"
-                >
-                  ▼
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onToggleLayerVisibility(layer.id);
-                  }}
-                >
-                  {layer.visible ? "Hide" : "Show"}
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onDeleteLayer(layer.id);
-                  }}
-                >
-                  삭제
-                </Button>
+                {[
+                  {
+                    key: "up",
+                    label: "▲",
+                    variant: "outline" as const,
+                    onClick: (event: MouseEvent<HTMLButtonElement>) =>
+                      handleMoveLayer(event, layer.id, "up"),
+                    disabled: isTop,
+                    ariaLabel: "Move layer up",
+                  },
+                  {
+                    key: "down",
+                    label: "▼",
+                    variant: "outline" as const,
+                    onClick: (event: MouseEvent<HTMLButtonElement>) =>
+                      handleMoveLayer(event, layer.id, "down"),
+                    disabled: isBottom,
+                    ariaLabel: "Move layer down",
+                  },
+                  {
+                    key: "visibility",
+                    label: layer.visible ? "Hide" : "Show",
+                    variant: "ghost" as const,
+                    onClick: (event: MouseEvent<HTMLButtonElement>) =>
+                      handleToggleVisibility(event, layer.id),
+                    disabled: false,
+                    ariaLabel: layer.visible
+                      ? `${layer.name} 레이어 숨기기`
+                      : `${layer.name} 레이어 보이기`,
+                  },
+                  {
+                    key: "delete",
+                    label: "삭제",
+                    variant: "destructive" as const,
+                    onClick: (event: MouseEvent<HTMLButtonElement>) =>
+                      handleDeleteLayer(event, layer.id),
+                    disabled: false,
+                    ariaLabel: `${layer.name} 레이어 삭제`,
+                  },
+                ].map((action) => (
+                  <Button
+                    key={action.key}
+                    variant={action.variant}
+                    size="sm"
+                    className={`rounded ${
+                      action.key === "visibility" ? "ml-auto" : ""
+                    } disabled:opacity-40`}
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                    aria-label={action.ariaLabel}
+                  >
+                    {action.label}
+                  </Button>
+                ))}
               </div>
             );
           })
