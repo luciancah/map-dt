@@ -1,7 +1,10 @@
 import { act, waitFor } from "@testing-library/react";
-import { renderHook } from "@testing-library/react";
+import { renderHook, type RenderHookResult } from "@testing-library/react";
 import { useRectLayerEditor } from "./useRectLayerEditor";
 import { describe, expect, it } from "vitest";
+
+type RectLayerEditorHook = ReturnType<typeof useRectLayerEditor>;
+type RectLayerEditorHookResult = RenderHookResult<RectLayerEditorHook, void>["result"];
 
 type PointerDownEvent = Parameters<
   ReturnType<typeof useRectLayerEditor>["onCanvasPointerDown"]
@@ -34,7 +37,7 @@ const pointerEvent = (x: number, y: number, button = 0) =>
   }) as PointerDownEvent;
 
 const createRectLayer = async (
-  result: ReturnType<typeof renderHook>["result"],
+  result: RectLayerEditorHookResult,
   startX: number,
   startY: number,
   endX: number,
@@ -69,7 +72,7 @@ const createRectLayer = async (
 
 describe("useRectLayerEditor", () => {
   const createHook = () => {
-    const result = renderHook(() =>
+    const result = renderHook<RectLayerEditorHook, void>(() =>
       useRectLayerEditor({
         hasMapImage: true,
         mapWidth: 500,
