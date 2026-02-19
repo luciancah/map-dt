@@ -275,6 +275,7 @@ export default function Home() {
             mapImage={mapImage}
             layers={layers}
             selectedId={selectedId}
+            tool={tool}
             draftRect={interactionDraftRect}
             draftPolygon={interactionDraftPolygon}
             onPointerDown={onCanvasPointerDown}

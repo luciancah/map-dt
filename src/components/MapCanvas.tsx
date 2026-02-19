@@ -10,6 +10,7 @@ import type {
   MapImage,
   ResizeHandle,
   Point,
+  Tool,
 } from "@/lib/map-editor/types";
 import { Button } from "@/components/ui/button";
 
@@ -36,6 +37,7 @@ type MapCanvasProps = {
     layer: Layer,
     handle: ResizeHandle,
   ) => void;
+  tool: Tool;
   gridStepPx: number | null;
   displayWidth?: number;
   displayHeight?: number;
@@ -56,6 +58,7 @@ export function MapCanvas({
   onPolygonNodePointerDown,
   onPolygonEdgePointerDown,
   onResizePointerDown,
+  tool,
   gridStepPx,
   displayWidth,
   displayHeight,
@@ -65,6 +68,7 @@ export function MapCanvas({
     layerId: string;
     edgeIndex: number;
   } | null>(null);
+  const [canvasCursorClass, setCanvasCursorClass] = React.useState("cursor-crosshair");
 
   const boardWidth =
     displayWidth ?? mapImage?.width ?? EDITOR_RULES.fallbackMapWidth;
@@ -80,6 +84,16 @@ export function MapCanvas({
     s: "left-1/2 -bottom-2 -translate-x-1/2 cursor-ns-resize",
     sw: "-left-2 -bottom-2 cursor-nesw-resize",
     w: "-left-2 top-1/2 -translate-y-1/2 cursor-ew-resize",
+  };
+  const resizeCursorByHandle: Record<ResizeHandle, string> = {
+    nw: "cursor-nwse-resize",
+    n: "cursor-ns-resize",
+    ne: "cursor-nesw-resize",
+    e: "cursor-ew-resize",
+    se: "cursor-nwse-resize",
+    s: "cursor-ns-resize",
+    sw: "cursor-nesw-resize",
+    w: "cursor-ew-resize",
   };
 
   const getColorPair = (color: string) => ({
@@ -116,6 +130,9 @@ export function MapCanvas({
             y2={endY}
             stroke="rgba(249, 115, 22, 0.02)"
             strokeWidth={14}
+            data-polygon-edge="1"
+            data-layer-id={layer.id}
+            aria-label={`${layer.name} edge ${index + 1}`}
             onPointerEnter={() =>
               setHoveredPolygonEdge({
                 layerId: layer.id,
@@ -161,6 +178,10 @@ export function MapCanvas({
         <button
           type="button"
           key={`${layer.id}-edge-action-${index}`}
+          data-polygon-edge="1"
+          data-edge-action="1"
+          data-layer-id={layer.id}
+          data-edge-index={index}
           onPointerEnter={() =>
             setHoveredPolygonEdge({
               layerId: layer.id,
@@ -204,6 +225,9 @@ export function MapCanvas({
         <button
           type="button"
           key={`${layer.id}-node-${index}`}
+          data-polygon-node="1"
+          data-layer-id={layer.id}
+          data-node-index={index}
           onPointerDown={(event) => onPolygonNodePointerDown(event, layer, index)}
           className="absolute h-3 w-3 rounded-full border border-white bg-orange-400 shadow"
           style={{
@@ -226,6 +250,8 @@ export function MapCanvas({
             variant="outline"
             size="icon"
             onPointerDown={(event) => onResizePointerDown(event, layer, handle)}
+            data-resize-handle={handle}
+            data-layer-id={layer.id}
             className={`absolute h-4 w-4 rounded-sm border border-orange-700 bg-white p-0 ${resizeHandleClass[handle]}`}
             aria-label={`Resize ${handle}`}
           />
@@ -252,6 +278,7 @@ export function MapCanvas({
       <div
         key={layer.id}
         data-layer-id={layer.id}
+        data-layer-shape={layer.shape}
         className={`pointer-events-auto absolute ${
           isLayerSelected ? "ring-2 ring-white/80" : ""
         }`}
@@ -300,6 +327,7 @@ export function MapCanvas({
       <div
         key={layer.id}
         data-layer-id={layer.id}
+        data-layer-shape="rect"
         className={`absolute ${
           layer.id === selectedId ? "ring-2 ring-white/80" : ""
         }`}
@@ -394,14 +422,66 @@ export function MapCanvas({
     );
   };
 
+  const getCanvasCursorClass = (target: EventTarget | null) => {
+    if (!target) {
+      return tool === "select" ? "cursor-default" : "cursor-crosshair";
+    }
+
+    const element = target as HTMLElement;
+    const resizeHandle = element.closest<HTMLElement>("[data-resize-handle]");
+    if (resizeHandle) {
+      const resizeHandleType = resizeHandle.dataset.resizeHandle as
+        | ResizeHandle
+        | undefined;
+      return resizeHandleType ? resizeCursorByHandle[resizeHandleType] : "cursor-default";
+    }
+
+    const polygonNode = element.closest<HTMLElement>("[data-polygon-node]");
+    if (polygonNode) {
+      return tool === "select" ? "cursor-grab" : "cursor-grab";
+    }
+
+    const edgeAction = element.closest<HTMLElement>("[data-edge-action]");
+    if (edgeAction) {
+      return "cursor-copy";
+    }
+
+    const polygonEdge = element.closest<HTMLElement>("[data-polygon-edge]");
+    if (polygonEdge) {
+      return "cursor-crosshair";
+    }
+
+    const layerElement = element.closest<HTMLElement>("[data-layer-id]");
+    if (layerElement) {
+      return tool === "rect" ? "cursor-crosshair" : "cursor-grab";
+    }
+
+    return tool === "select" ? "cursor-default" : "cursor-crosshair";
+  };
+
+  const handleCanvasPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const nextCursor = getCanvasCursorClass(event.target);
+    setCanvasCursorClass(nextCursor);
+  };
+
+  const resetCanvasCursor = () => {
+    setCanvasCursorClass(tool === "select" ? "cursor-default" : "cursor-crosshair");
+  };
+
+  React.useEffect(() => {
+    setCanvasCursorClass(tool === "select" ? "cursor-default" : "cursor-crosshair");
+  }, [tool]);
+
   return (
     <section className="rounded-2xl border border-stone-300 bg-stone-100 p-3 shadow-sm">
       <div className="relative min-h-[320px] overflow-auto rounded-xl border border-stone-300">
         <div
           ref={frameRef}
           onPointerDown={onPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerLeave={resetCanvasCursor}
           onContextMenu={(event) => event.preventDefault()}
-          className="relative cursor-crosshair touch-none bg-stone-200"
+          className={`relative touch-none bg-stone-200 ${canvasCursorClass}`}
           style={{
             width: boardWidth,
             height: boardHeight,
