@@ -41,6 +41,7 @@ const TOOL_OPTIONS: { id: Tool; label: string; activeLabel: string }[] = [
   { id: "select", label: "Select", activeLabel: "Select/Move" },
   { id: "rect", label: "Rectangle", activeLabel: "Rect Draw" },
   { id: "polygon", label: "Polygon", activeLabel: "Polygon Draw" },
+  { id: "poi", label: "POI", activeLabel: "POI Place" },
 ];
 const layerColorPresets = [
   "#f97316",
@@ -152,6 +153,7 @@ export default function Home() {
     convertRectToPolygon,
     insertPolygonPointOnEdge,
     startPolygonNodeDrag,
+    startPoiDirectionDrag,
     startResize,
     selectLayer,
     toggleLayerVisible,
@@ -282,6 +284,7 @@ export default function Home() {
             onPolygonNodePointerDown={startPolygonNodeDrag}
             onPolygonEdgePointerDown={insertPolygonPointOnEdge}
             onResizePointerDown={startResize}
+            onPoiDirectionPointerDown={startPoiDirectionDrag}
             gridStepPx={gridStepPx}
             displayWidth={mapDisplaySize.width}
             displayHeight={mapDisplaySize.height}
@@ -389,7 +392,14 @@ export default function Home() {
                   <p className="text-sm font-semibold text-stone-900">
                     {selectedLayer.name}
                   </p>
-                  <p>형태: {selectedLayer.shape === "rect" ? "사각형" : "폴리곤"}</p>
+                  <p>
+                    형태:{" "}
+                    {selectedLayer.shape === "rect"
+                      ? "사각형"
+                      : selectedLayer.shape === "polygon"
+                        ? "폴리곤"
+                        : "POI"}
+                  </p>
                   {selectedLayer.shape === "rect" ? (
                     <Button
                       type="button"

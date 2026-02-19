@@ -36,6 +36,14 @@ const pointerEvent = (x: number, y: number, button = 0) =>
     clientY: y,
   }) as PointerDownEvent;
 
+const pointerButtonEvent = (button = 0) =>
+  ({
+    button,
+    stopPropagation: () => {},
+  }) as Parameters<
+    ReturnType<typeof useRectLayerEditor>["startPoiDirectionDrag"]
+  >[0];
+
 const createRectLayer = async (
   result: RectLayerEditorHookResult,
   startX: number,
@@ -71,13 +79,13 @@ const createRectLayer = async (
 };
 
 describe("useRectLayerEditor", () => {
-  const createHook = () => {
+  const createHook = (gridStepPx: number | null = 10) => {
     const result = renderHook<RectLayerEditorHook, void>(() =>
       useRectLayerEditor({
         hasMapImage: true,
         mapWidth: 500,
         mapHeight: 400,
-        gridStepPx: 10,
+        gridStepPx,
       }),
     ).result;
     const frame = createFrameElement();
@@ -144,6 +152,44 @@ describe("useRectLayerEditor", () => {
 
     expect(result.current.layers[0].color).toBe("#123456");
     expect(result.current.layers[0].visible).toBe(false);
+  });
+
+  it("creates a POI layer and updates direction", async () => {
+    const result = createHook();
+
+    act(() => {
+      result.current.setTool("poi");
+    });
+
+    act(() => {
+      result.current.onCanvasPointerDown(pointerEvent(60, 80));
+    });
+
+    await waitFor(() => {
+      expect(result.current.layers).toHaveLength(1);
+      expect(result.current.layers[0].shape).toBe("poi");
+    });
+
+    const poiLayer = result.current.layers[0];
+
+    act(() => {
+      result.current.startPoiDirectionDrag(pointerButtonEvent(), poiLayer);
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new PointerEvent("pointermove", { clientX: 60, clientY: 110 }),
+      );
+      window.dispatchEvent(
+        new PointerEvent("pointerup", { clientX: 60, clientY: 110 }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedLayer?.shape).toBe("poi");
+      expect(result.current.selectedLayer?.direction).toBeGreaterThan(80);
+      expect(result.current.selectedLayer?.direction).toBeLessThan(100);
+    });
   });
 
   it("converts a rectangle to polygon shape", async () => {

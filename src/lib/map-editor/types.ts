@@ -1,6 +1,6 @@
-export type Tool = "select" | "rect" | "polygon";
+export type Tool = "select" | "rect" | "polygon" | "poi";
 
-export type LayerShape = "rect" | "polygon";
+export type LayerShape = "rect" | "polygon" | "poi";
 
 export type Layer = {
   id: string;
@@ -11,6 +11,7 @@ export type Layer = {
   height: number;
   shape: LayerShape;
   points?: Point[];
+  direction?: number;
   color: string;
   visible: boolean;
   content: string;
@@ -68,6 +69,10 @@ export type Interaction =
       originX: number;
       originY: number;
       handle: ResizeHandle;
+    }
+  | {
+      type: "poi-direction-dragging";
+      layerId: string;
     };
 
 export type DraftRect = {

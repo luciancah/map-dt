@@ -45,6 +45,10 @@ type UseRectLayerEditor = {
     layer: Layer,
     nodeIndex: number,
   ) => void;
+  startPoiDirectionDrag: (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    layer: Layer,
+  ) => void;
   insertPolygonPointOnEdge: (
     event: ReactPointerEvent<SVGLineElement | HTMLButtonElement>,
     layer: Layer,
@@ -72,6 +76,13 @@ type UseRectLayerEditorOptions = {
 };
 
 const DEFAULT_LAYER_COLOR = "#ff7e36";
+const DEFAULT_POI_SIZE = 24;
+
+const normalizeDirection = (value: number) => {
+  let angle = value % 360;
+  if (angle < 0) angle += 360;
+  return angle;
+};
 
 export function useRectLayerEditor({
   hasMapImage,
@@ -430,6 +441,40 @@ export function useRectLayerEditor({
     [clampedLayers, getPolygonLayerGeometry],
   );
 
+  const createPoiLayer = useCallback(
+    (point: Point) => {
+      const layerName = makeUniqueLayerName(clampedLayers, "POI");
+      const snappedX = snapToGrid(point.x - DEFAULT_POI_SIZE / 2);
+      const snappedY = snapToGrid(point.y - DEFAULT_POI_SIZE / 2);
+      const normalizedX = mapWidth
+        ? clamp(snappedX, 0, Math.max(0, mapWidth - DEFAULT_POI_SIZE))
+        : snappedX;
+      const normalizedY = mapHeight
+        ? clamp(snappedY, 0, Math.max(0, mapHeight - DEFAULT_POI_SIZE))
+        : snappedY;
+
+      const newLayer: Layer = {
+        id: crypto.randomUUID(),
+        name: layerName,
+        x: normalizedX,
+        y: normalizedY,
+        width: DEFAULT_POI_SIZE,
+        height: DEFAULT_POI_SIZE,
+        shape: "poi",
+        direction: 0,
+        color: DEFAULT_LAYER_COLOR,
+        visible: true,
+        content: layerName,
+      };
+
+      setLayers((prev) => [...prev, newLayer]);
+      setSelectedId(newLayer.id);
+      setTool("select");
+      return newLayer.id;
+    },
+    [clampedLayers, mapHeight, mapWidth, setTool, snapToGrid],
+  );
+
   const getClickedLayerId = useCallback((event: { target: EventTarget | null }) => {
     return (event.target as HTMLElement).closest<HTMLElement>("[data-layer-id]")
       ?.dataset.layerId ?? null;
@@ -498,6 +543,12 @@ export function useRectLayerEditor({
     });
     return true;
   }, [hasMapImage]);
+
+  const handlePoiToolDown = useCallback((point: Point) => {
+    if (!hasMapImage) return false;
+    const createdLayerId = createPoiLayer(point);
+    return Boolean(createdLayerId);
+  }, [createPoiLayer, hasMapImage]);
 
   const handleExistingPolygonDown = useCallback(
     (
@@ -574,6 +625,10 @@ export function useRectLayerEditor({
         if (handleRectToolDown(point)) return;
       }
 
+      if (tool === "poi") {
+        if (handlePoiToolDown(point)) return;
+      }
+
       if (tool === "polygon") {
         if (!hasMapImage) return;
         handlePolygonToolDown(event, point);
@@ -586,6 +641,7 @@ export function useRectLayerEditor({
     [
       getLocalPoint,
       handleRectToolDown,
+      handlePoiToolDown,
       handleSelectToolDown,
       handlePolygonToolDown,
       hasMapImage,
@@ -646,6 +702,21 @@ export function useRectLayerEditor({
       });
     },
     [getLocalPoint],
+  );
+
+  const startPoiDirectionDrag = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>, layer: Layer) => {
+      event.stopPropagation();
+      if (event.button !== 0) return;
+      if (layer.shape !== "poi") return;
+
+      setSelectedId(layer.id);
+      setInteraction({
+        type: "poi-direction-dragging",
+        layerId: layer.id,
+      });
+    },
+    [],
   );
 
   const insertPolygonPointOnEdge = useCallback(
@@ -740,6 +811,29 @@ export function useRectLayerEditor({
       );
     },
     [getPolygonLayerGeometry, mapHeight, mapWidth, snapToGrid],
+  );
+
+  const updatePoiDirectionByInteraction = useCallback(
+    (
+      interactionState: Extract<Interaction, { type: "poi-direction-dragging" }>,
+      point: Point,
+    ) => {
+      setLayers((prev) =>
+        prev.map((layer) => {
+          if (layer.id !== interactionState.layerId) return layer;
+
+          const centerX = layer.x + layer.width / 2;
+          const centerY = layer.y + layer.height / 2;
+          const direction = Math.atan2(point.y - centerY, point.x - centerX) * (180 / Math.PI);
+
+          return {
+            ...layer,
+            direction: normalizeDirection(direction),
+          };
+        }),
+      );
+    },
+    [],
   );
 
   const updateLayerDragByInteraction = useCallback(
@@ -878,6 +972,9 @@ export function useRectLayerEditor({
         case "resizing":
           updateLayerResizeByInteraction(interactionState, point);
           return;
+        case "poi-direction-dragging":
+          updatePoiDirectionByInteraction(interactionState, point);
+          return;
         default:
           break;
       }
@@ -887,6 +984,7 @@ export function useRectLayerEditor({
       updateLayerDragByInteraction,
       updateLayerResizeByInteraction,
       updatePolygonNodeByInteraction,
+      updatePoiDirectionByInteraction,
     ],
   );
 
@@ -1072,6 +1170,7 @@ export function useRectLayerEditor({
     renameLayer,
     setLayerColor,
     startPolygonNodeDrag,
+    startPoiDirectionDrag,
     insertPolygonPointOnEdge,
     startResize,
     selectLayer,

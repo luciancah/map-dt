@@ -13,6 +13,7 @@ import type {
 } from "@/lib/map-editor/types";
 import { RESIZE_CURSOR_BY_HANDLE } from "@/components/map-canvas/resize";
 import { DraftShapes } from "@/components/map-canvas/DraftShapes";
+import { PoiLayer } from "@/components/map-canvas/PoiLayer";
 import { PolygonLayer } from "@/components/map-canvas/PolygonLayer";
 import { RectLayer } from "@/components/map-canvas/RectLayer";
 
@@ -39,6 +40,10 @@ type MapCanvasProps = {
     layer: Layer,
     handle: ResizeHandle,
   ) => void;
+  onPoiDirectionPointerDown: (
+    event: React.PointerEvent<HTMLButtonElement>,
+    layer: Layer,
+  ) => void;
   tool: Tool;
   gridStepPx: number | null;
   displayWidth?: number;
@@ -64,6 +69,7 @@ export function MapCanvas({
   onPolygonNodePointerDown,
   onPolygonEdgePointerDown,
   onResizePointerDown,
+  onPoiDirectionPointerDown,
   tool,
   gridStepPx,
   displayWidth,
@@ -105,6 +111,13 @@ export function MapCanvas({
 
     const polygonNode = element.closest<HTMLElement>("[data-polygon-node]");
     if (polygonNode) {
+      return "cursor-grab";
+    }
+
+    const poiDirectionHandle = element.closest<HTMLElement>(
+      "[data-poi-direction]",
+    );
+    if (poiDirectionHandle) {
       return "cursor-grab";
     }
 
@@ -197,6 +210,19 @@ export function MapCanvas({
                   setHoveredPolygonEdge={setHoveredPolygonEdge}
                   onNodePointerDown={onPolygonNodePointerDown}
                   onEdgePointerDown={onPolygonEdgePointerDown}
+                />
+              );
+            }
+
+            if (layer.shape === "poi") {
+              return (
+                <PoiLayer
+                  key={layer.id}
+                  layer={layer}
+                  selectedLayerId={selectedId}
+                  displayScale={displayScale}
+                  colors={colors}
+                  onDirectionPointerDown={onPoiDirectionPointerDown}
                 />
               );
             }
