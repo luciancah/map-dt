@@ -491,7 +491,6 @@ export function useRectLayerEditor({
         );
         if (!activeLayer) return;
         setSelectedId(clickedLayerId);
-        if (activeLayer.shape === "polygon") return;
         setInteraction({
           type: "dragging",
           layerId: clickedLayerId,
