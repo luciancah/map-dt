@@ -791,6 +791,9 @@ export function useRectLayerEditor({
           setTool("select");
         }
       }
+      if (interaction.type === "polygon-drawing") {
+        return;
+      }
 
       setInteraction(null);
     };
