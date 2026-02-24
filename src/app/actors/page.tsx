@@ -1,7 +1,6 @@
 "use client";
 
 import { type FormEvent, useEffect, useState } from "react";
-import { MainNav } from "@/components/navigation/MainNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -100,18 +99,23 @@ export default function ActorsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-stone-100 p-4 text-stone-900 md:p-6">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-        <MainNav />
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-sm font-semibold">Actors</h2>
+        <p className="text-xs text-muted-foreground">
+          Actor 엔티티를 생성/수정/삭제합니다.
+        </p>
+      </div>
 
+      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Actors</CardTitle>
-            <CardDescription>Actor를 생성/수정/삭제합니다.</CardDescription>
+            <CardTitle>Actor 생성</CardTitle>
+            <CardDescription>Actor 기본 정보를 입력합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <form onSubmit={createItem} className="flex flex-wrap items-end gap-2">
-              <div className="space-y-1">
+            <form onSubmit={createItem} className="space-y-3">
+              <div>
                 <Label htmlFor="new-actor-name">이름</Label>
                 <Input
                   id="new-actor-name"
@@ -130,33 +134,33 @@ export default function ActorsPage() {
                 />
                 활성화
               </label>
-              <Button type="submit">추가</Button>
+              <div>
+                <Button type="submit">추가</Button>
+              </div>
             </form>
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>Actor 목록</CardTitle>
+            <CardDescription>등록된 Actor를 관리합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {items.length === 0 ? (
-              <p className="rounded-md border border-dashed border-stone-200 bg-white p-3 text-sm text-stone-600">
+              <p className="rounded-md border border-dashed border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
                 등록된 Actor가 없습니다.
               </p>
             ) : null}
             {items.map((item) => (
               <div
                 key={item.id}
-                className="flex flex-wrap items-center gap-2 rounded-md border border-stone-200 bg-white p-2"
+                className="rounded-md border border-stone-200 p-2"
               >
                 {editingId === item.id ? (
-                  <form
-                    onSubmit={saveEdit}
-                    className="flex flex-wrap items-end gap-2"
-                  >
-                    <div className="space-y-1">
+                  <form onSubmit={saveEdit} className="space-y-2">
+                    <div>
                       <Label htmlFor={`actor-name-${item.id}`}>이름</Label>
                       <Input
                         id={`actor-name-${item.id}`}
@@ -173,39 +177,51 @@ export default function ActorsPage() {
                       />
                       활성화
                     </label>
-                    <Button size="sm" type="submit">
-                      저장
-                    </Button>
-                    <Button size="sm" variant="outline" type="button" onClick={cancelEdit}>
-                      취소
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" type="submit">
+                        저장
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={cancelEdit}
+                      >
+                        취소
+                      </Button>
+                    </div>
                   </form>
                 ) : (
-                  <>
-                    <div className="min-w-0 flex-1">
+                  <div className="space-y-2">
+                    <div className="min-w-0">
                       <p className="font-medium">{item.name}</p>
-                      <p className="text-xs text-stone-500">ID: {item.id}</p>
+                      <p className="text-xs text-muted-foreground">
+                        ID: {item.id} / 상태: {item.enabled ? "ON" : "OFF"}
+                      </p>
                     </div>
-                    <p className="text-xs">
-                      상태: <span>{item.enabled ? "ON" : "OFF"}</span>
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => beginEdit(item)}
-                    >
-                      수정
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => remove(item.id)}>
-                      삭제
-                    </Button>
-                  </>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => beginEdit(item)}
+                      >
+                        수정
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => remove(item.id)}
+                      >
+                        삭제
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             ))}
           </CardContent>
         </Card>
       </div>
-    </main>
+    </div>
   );
 }

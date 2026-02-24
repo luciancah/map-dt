@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { MainNav } from "@/components/navigation/MainNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -121,59 +120,63 @@ export default function MapsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-stone-100 p-4 text-stone-900 md:p-6">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-        <MainNav />
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-sm font-semibold">Maps</h2>
+        <p className="text-xs text-muted-foreground">
+          지도(맵)를 생성하고 센서맵 이미지를 업로드합니다.
+        </p>
+      </div>
 
+      <div className="grid gap-4 xl:grid-cols-[380px_1fr]">
         <Card>
-          <CardHeader>
-            <CardTitle>Maps</CardTitle>
-            <CardDescription>
-              지도(맵)를 생성하고 센서맵 이미지를 업로드합니다.
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle>새 지도 생성</CardTitle>
+            <CardDescription>새 지도 등록과 기본 속성을 입력합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <form onSubmit={createMap} className="flex gap-2">
+            <form onSubmit={createMap} className="space-y-2">
               <Label htmlFor="new-map-name" className="sr-only">
                 맵 이름
               </Label>
-              <Input
-                id="new-map-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="맵 이름"
-                maxLength={100}
-              />
-              <Button type="submit" disabled={loading}>
-                생성
-              </Button>
+              <div className="flex gap-2">
+                <Input
+                  id="new-map-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="맵 이름"
+                  maxLength={100}
+                />
+                <Button type="submit" size="sm" disabled={loading}>
+                  생성
+                </Button>
+              </div>
             </form>
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
-            <p className="text-xs text-stone-600">
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <p className="text-xs text-muted-foreground">
               API: {process.env.NEXT_PUBLIC_TUDUBEM_API_URL ?? "http://localhost:8080"}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle>맵 목록</CardTitle>
-            <CardDescription>맵별로 센서맵 업로드와 월드 빌드 화면으로 이동할 수 있습니다.</CardDescription>
+            <CardDescription>
+              센서맵 업로드 및 월드 빌드 화면 이동을 관리합니다.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {maps.length === 0 ? (
-              <p className="rounded-md border border-dashed border-stone-200 bg-white p-3 text-sm text-stone-600">
+              <p className="rounded-md border border-dashed border-stone-200 bg-stone-50 px-3 py-4 text-sm text-stone-600">
                 등록된 맵이 없습니다.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {maps.map((map) => {
                   const hasImage = Boolean(map.sensorMapImagePath);
                   return (
-                    <div
-                      key={map.id}
-                      className="rounded-md border border-stone-200 bg-white p-3"
-                    >
+                    <div key={map.id} className="rounded-md border p-2">
                       <div className="flex flex-wrap items-center gap-2">
                         {editingId === map.id ? (
                           <form
@@ -203,7 +206,7 @@ export default function MapsPage() {
                         ) : (
                           <div className="min-w-0 flex-1">
                             <p className="font-medium">{map.name}</p>
-                            <p className="text-xs text-stone-500">ID: {map.id}</p>
+                            <p className="text-xs text-muted-foreground">ID: {map.id}</p>
                           </div>
                         )}
 
@@ -221,7 +224,7 @@ export default function MapsPage() {
                         >
                           센서맵 업로드
                         </Button>
-                        <Link href={`/world-editor?mapId=${map.id}`}>
+                        <Link href={`/world-editor?mapId=${map.id}`} className="contents">
                           <Button size="sm" variant="secondary">
                             월드 편집
                           </Button>
@@ -246,11 +249,11 @@ export default function MapsPage() {
                       </div>
 
                       {hasImage ? (
-                        <div className="mt-3">
+                        <div className="mt-2">
                           <img
                             src={mapApi.getSensorMapUrl(map.id)}
                             alt={`${map.name} 센서맵`}
-                            className="max-h-36 max-w-full rounded border"
+                            className="max-h-28 max-w-full rounded border"
                           />
                         </div>
                       ) : null}
@@ -262,6 +265,6 @@ export default function MapsPage() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </div>
   );
 }
