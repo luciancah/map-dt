@@ -1,6 +1,7 @@
 export type Tool = "select" | "rect" | "polygon" | "poi";
 
 export type LayerShape = "rect" | "polygon" | "poi";
+export type LayerContext = "area" | "keepout";
 
 export type Layer = {
   id: string;
@@ -10,11 +11,17 @@ export type Layer = {
   width: number;
   height: number;
   shape: LayerShape;
+  context?: LayerContext;
   points?: Point[];
   direction?: number;
   color: string;
   visible: boolean;
   content: string;
+  serverId?: number;
+  serverType?: string | null;
+  serverMetadataJson?: string | null;
+  serverEnabled?: boolean;
+  serverReason?: string | null;
 };
 
 export type MapImage = {

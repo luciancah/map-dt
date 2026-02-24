@@ -87,6 +87,15 @@ export function LayerListPanel({
                 <span className="min-w-0 truncate text-left text-sm font-medium text-stone-800">
                   {layer.name}
                 </span>
+                <Badge
+                  className={`text-[10px] ${
+                    layer.context === "keepout"
+                      ? "border-blue-200 bg-blue-100 text-blue-700"
+                      : "border-orange-200 bg-orange-100 text-orange-700"
+                  }`}
+                >
+                  {layer.context === "keepout" ? "Keepout" : "Area"}
+                </Badge>
                 <Badge className="text-[10px]">
                   z: {layerZIndexById.get(layer.id) ?? ""}
                 </Badge>

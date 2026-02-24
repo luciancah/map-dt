@@ -34,6 +34,7 @@ const pointerEvent = (x: number, y: number, button = 0) =>
     button,
     clientX: x,
     clientY: y,
+    preventDefault: () => {},
   }) as PointerDownEvent;
 
 const pointerButtonEvent = (button = 0) =>
@@ -141,6 +142,43 @@ describe("useRectLayerEditor", () => {
       expect(result.current.layers).toHaveLength(1);
       expect(result.current.selectedLayer?.shape).toBe("polygon");
       expect(result.current.selectedLayer?.points?.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  it("creates a polygon layer by right-click completion", async () => {
+    const result = createHook();
+
+    act(() => {
+      result.current.setTool("polygon");
+    });
+
+    act(() => {
+      result.current.onCanvasPointerDown(pointerEvent(30, 30, 0));
+    });
+
+    await waitFor(() => {
+      expect(result.current.interactionDraftPolygon?.points).toHaveLength(2);
+    });
+
+    act(() => {
+      result.current.onCanvasPointerDown(pointerEvent(130, 30, 0));
+    });
+
+    await waitFor(() => {
+      expect(result.current.interactionDraftPolygon?.points).toHaveLength(3);
+    });
+
+    expect(result.current.interactionDraftPolygon).not.toBeNull();
+
+    act(() => {
+      result.current.onCanvasPointerDown(pointerEvent(130, 130, 2));
+    });
+
+    await waitFor(() => {
+      expect(result.current.layers).toHaveLength(1);
+      expect(result.current.tool).toBe("select");
+      expect(result.current.selectedLayer?.shape).toBe("polygon");
+      expect(result.current.selectedLayer?.points).toHaveLength(3);
     });
   });
 

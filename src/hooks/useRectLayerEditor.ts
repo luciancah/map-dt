@@ -13,6 +13,7 @@ import {
   Interaction,
   Layer,
   Point,
+  LayerContext,
   ResizeHandle,
   Tool,
 } from "@/lib/map-editor/types";
@@ -65,6 +66,8 @@ type UseRectLayerEditor = {
   removeLayer: (layerId: string) => void;
   moveLayer: (layerId: string, direction: "up" | "down") => void;
   clearAllLayers: () => void;
+  setDefaultLayerContext: (nextContext: LayerContext) => void;
+  setLayersFromServer: (nextLayers: Layer[]) => void;
 };
 
 type UseRectLayerEditorOptions = {
@@ -73,10 +76,17 @@ type UseRectLayerEditorOptions = {
   mapHeight?: number | null;
   gridStepPx?: number | null;
   displayScale?: number;
+  defaultLayerContext?: LayerContext;
 };
 
-const DEFAULT_LAYER_COLOR = "#ff7e36";
+const DEFAULT_LAYER_COLOR_BY_CONTEXT: Record<LayerContext, string> = {
+  area: "#f97316",
+  keepout: "#2563eb",
+};
 const DEFAULT_POI_SIZE = 24;
+
+const getDefaultColorByContext = (context: LayerContext) =>
+  DEFAULT_LAYER_COLOR_BY_CONTEXT[context] ?? "#f97316";
 
 const normalizeDirection = (value: number) => {
   let angle = value % 360;
@@ -90,17 +100,25 @@ export function useRectLayerEditor({
   mapHeight,
   gridStepPx,
   displayScale = 1,
+  defaultLayerContext = "area",
 }: UseRectLayerEditorOptions): UseRectLayerEditor {
   const frameRef = useRef<HTMLDivElement>(null);
   const [tool, setToolState] = useState<Tool>("rect");
   const [layers, setLayers] = useState<Layer[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [interaction, setInteraction] = useState<Interaction | null>(null);
+  const [nextLayerContext, setNextLayerContext] = useState<LayerContext>(
+    defaultLayerContext,
+  );
 
   const setTool = useCallback((next: Tool) => {
     setToolState(next);
     setInteraction(null);
   }, []);
+
+  useEffect(() => {
+    setNextLayerContext(defaultLayerContext);
+  }, [defaultLayerContext]);
 
   const clampInsideMapX = useCallback(
     (value: number, width: number, boundaryWidth?: number | null) => {
@@ -423,13 +441,14 @@ export function useRectLayerEditor({
       const newLayer: Layer = {
         id: crypto.randomUUID(),
         name: layerName,
+        context: nextLayerContext,
         x: bounds.x,
         y: bounds.y,
         width: bounds.width,
         height: bounds.height,
         shape: "polygon",
         points: polygonGeometry.points,
-        color: DEFAULT_LAYER_COLOR,
+        color: getDefaultColorByContext(nextLayerContext),
         visible: true,
         content: layerName,
       };
@@ -438,7 +457,7 @@ export function useRectLayerEditor({
       setSelectedId(newLayer.id);
       return newLayer.id;
     },
-    [clampedLayers, getPolygonLayerGeometry],
+    [clampedLayers, getPolygonLayerGeometry, nextLayerContext],
   );
 
   const createPoiLayer = useCallback(
@@ -456,13 +475,14 @@ export function useRectLayerEditor({
       const newLayer: Layer = {
         id: crypto.randomUUID(),
         name: layerName,
+        context: nextLayerContext,
         x: normalizedX,
         y: normalizedY,
         width: DEFAULT_POI_SIZE,
         height: DEFAULT_POI_SIZE,
         shape: "poi",
         direction: 0,
-        color: DEFAULT_LAYER_COLOR,
+        color: getDefaultColorByContext(nextLayerContext),
         visible: true,
         content: layerName,
       };
@@ -472,7 +492,7 @@ export function useRectLayerEditor({
       setTool("select");
       return newLayer.id;
     },
-    [clampedLayers, mapHeight, mapWidth, setTool, snapToGrid],
+    [clampedLayers, mapHeight, mapWidth, nextLayerContext, setTool, snapToGrid],
   );
 
   const getClickedLayerId = useCallback((event: { target: EventTarget | null }) => {
@@ -924,12 +944,13 @@ export function useRectLayerEditor({
       const newLayer: Layer = {
         id: crypto.randomUUID(),
         name: layerName,
+        context: nextLayerContext,
         x: snappedDraft.left,
         y: snappedDraft.top,
         width: snappedDraft.width,
         height: snappedDraft.height,
         shape: "rect",
-        color: DEFAULT_LAYER_COLOR,
+        color: getDefaultColorByContext(nextLayerContext),
         visible: true,
         content: layerName,
       };
@@ -938,7 +959,7 @@ export function useRectLayerEditor({
       setSelectedId(newLayer.id);
       setTool("select");
     }
-  }, [clampedLayers, interaction, setTool, snapRect]);
+  }, [clampedLayers, interaction, nextLayerContext, setTool, snapRect]);
 
   const setDraftInteractionPoint = useCallback(
     (
@@ -1126,14 +1147,14 @@ export function useRectLayerEditor({
     setLayers((prev) =>
       prev.map((layer) =>
         layer.id === layerId
-          ? { ...layer, shape: "polygon", points }
+          ? { ...layer, shape: "polygon", points, context: layer.context ?? nextLayerContext }
           : layer,
       ),
     );
 
     setSelectedId(layerId);
     return true;
-  }, [clampedLayers]);
+  }, [clampedLayers, nextLayerContext]);
 
   const moveLayer = (layerId: string, direction: "up" | "down") => {
     setLayers((prev) => {
@@ -1152,10 +1173,23 @@ export function useRectLayerEditor({
     });
   };
 
-  const clearAllLayers = () => {
+  const clearAllLayers = useCallback(() => {
     setLayers([]);
     setSelectedId(null);
+  }, []);
+
+  const setDefaultLayerContext = (nextContext: LayerContext) => {
+    setNextLayerContext(nextContext);
   };
+
+  const setLayersFromServer = useCallback((nextLayers: Layer[]) => {
+    setLayers(nextLayers);
+    setSelectedId((prevId) => {
+      if (!prevId) return prevId;
+      return nextLayers.some((layer) => layer.id === prevId) ? prevId : null;
+    });
+    setInteraction(null);
+  }, []);
 
   return {
     tool,
@@ -1179,5 +1213,7 @@ export function useRectLayerEditor({
     moveLayer,
     removeLayer,
     clearAllLayers,
+    setDefaultLayerContext,
+    setLayersFromServer,
   };
 }
