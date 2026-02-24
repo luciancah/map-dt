@@ -28,6 +28,7 @@ import {
   normalizeRect,
   clampPointToBounds,
 } from "@/lib/map-editor/geometry";
+import { getDefaultLayerColorByContext } from "@/lib/map-editor/layer-colors";
 
 type UseRectLayerEditor = {
   tool: Tool;
@@ -79,14 +80,7 @@ type UseRectLayerEditorOptions = {
   defaultLayerContext?: LayerContext;
 };
 
-const DEFAULT_LAYER_COLOR_BY_CONTEXT: Record<LayerContext, string> = {
-  area: "#f97316",
-  keepout: "#2563eb",
-};
 const DEFAULT_POI_SIZE = 24;
-
-const getDefaultColorByContext = (context: LayerContext) =>
-  DEFAULT_LAYER_COLOR_BY_CONTEXT[context] ?? "#f97316";
 
 const normalizeDirection = (value: number) => {
   let angle = value % 360;
@@ -448,7 +442,7 @@ export function useRectLayerEditor({
         height: bounds.height,
         shape: "polygon",
         points: polygonGeometry.points,
-        color: getDefaultColorByContext(nextLayerContext),
+        color: getDefaultLayerColorByContext(nextLayerContext),
         visible: true,
         content: layerName,
       };
@@ -482,7 +476,7 @@ export function useRectLayerEditor({
         height: DEFAULT_POI_SIZE,
         shape: "poi",
         direction: 0,
-        color: getDefaultColorByContext(nextLayerContext),
+        color: getDefaultLayerColorByContext(nextLayerContext),
         visible: true,
         content: layerName,
       };
@@ -950,7 +944,7 @@ export function useRectLayerEditor({
         width: snappedDraft.width,
         height: snappedDraft.height,
         shape: "rect",
-        color: getDefaultColorByContext(nextLayerContext),
+        color: getDefaultLayerColorByContext(nextLayerContext),
         visible: true,
         content: layerName,
       };

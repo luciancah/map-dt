@@ -2,6 +2,7 @@ import type { Layer, LayerContext } from "@/lib/map-editor/types";
 import { makeUniqueLayerName } from "@/lib/map-editor/geometry";
 import { fromApiVertices, toApiVertices } from "@/lib/map-editor/coords";
 import type { AreaEntity, KeepoutEntity } from "@/lib/api/types";
+import { getDefaultLayerColorByContext } from "@/lib/map-editor/layer-colors";
 
 type PayloadByContext = "area" | "keepout";
 
@@ -15,7 +16,6 @@ export const mapServerShapeToLayer = (
   mapHeight: number,
 ) => {
   const parsed = fromApiVertices(shape.verticesJson, mapHeight);
-  const contextColor = context === "area" ? "#f97316" : "#2563eb";
   return {
     id: `${context}-${shape.id}`,
     name: shape.name ?? `${context === "area" ? "Area" : "Keepout"} ${index + 1}`,
@@ -35,7 +35,7 @@ export const mapServerShapeToLayer = (
     points: parsed,
     context,
     visible: true,
-    color: contextColor,
+    color: getDefaultLayerColorByContext(context),
     content: shape.name ?? `${context === "area" ? "Area" : "Keepout"} ${index + 1}`,
     serverId: shape.id,
     serverType: "type" in shape ? shape.type : null,

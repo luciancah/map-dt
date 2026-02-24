@@ -27,6 +27,7 @@ import {
   saveLayer,
   toServerState,
 } from "@/features/world-editor/services/world-editor-service";
+import { getDefaultLayerColorByContext } from "@/lib/map-editor/layer-colors";
 import type { EditableMap } from "@/features/world-editor/types";
 
 export type WorldEditorController = ReturnType<typeof useWorldEditorController>;
@@ -266,10 +267,11 @@ export function useWorldEditorController() {
       setLayerContext(nextContext);
       if (!selectedLayer) return;
 
+      const nextColor = getDefaultLayerColorByContext(nextContext);
       setLayersFromServer(
         layers.map((layer) =>
           layer.id === selectedLayer.id
-            ? { ...layer, context: nextContext }
+            ? { ...layer, context: nextContext, color: nextColor }
             : layer,
         ),
       );
