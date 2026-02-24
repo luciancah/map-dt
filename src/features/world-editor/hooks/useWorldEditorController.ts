@@ -53,7 +53,7 @@ export function useWorldEditorController() {
     mapImage?.width,
     mapImage?.height,
     {
-      reservedWidthPx: 700,
+      reservedWidthPx: 560,
       topPaddingPx: 210,
       minHeightPx: 320,
     },

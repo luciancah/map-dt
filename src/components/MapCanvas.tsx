@@ -78,7 +78,7 @@ export function MapCanvas({
   displayHeight,
   displayScale = 1,
   className,
-}: MapCanvasProps) {
+}: Readonly<MapCanvasProps>) {
   const [hoveredPolygonEdge, setHoveredPolygonEdge] =
     React.useState<HoveredPolygonEdge>(null);
   const [canvasCursorClass, setCanvasCursorClass] = React.useState(
@@ -160,18 +160,20 @@ export function MapCanvas({
   return (
     <section
       className={cn(
-        "relative min-h-0 h-full w-full rounded-lg border border-stone-300 bg-stone-100 p-3 shadow-sm",
+        "relative h-full min-h-0 w-full border-t bg-background",
         className,
       )}
     >
-      <div className="relative h-full min-h-0 overflow-auto rounded-xl border border-stone-300">
+      <div className="relative h-full min-h-0 overflow-auto">
         <div
           ref={frameRef}
           onPointerDown={onPointerDown}
           onPointerMove={handleCanvasPointerMove}
           onPointerLeave={resetCanvasCursor}
           onContextMenu={(event) => event.preventDefault()}
-          className={`relative touch-none bg-stone-200 ${canvasCursorClass}`}
+          role="application"
+          aria-label="월드 편집 캔버스"
+          className={`relative touch-none bg-muted/60 ${canvasCursorClass}`}
           style={{
             width: boardWidth,
             height: boardHeight,
@@ -179,9 +181,9 @@ export function MapCanvas({
             backgroundRepeat: "no-repeat",
             backgroundPosition: "0 0",
             backgroundSize: mapImage ? "100% 100%" : "auto",
-            backgroundColor: mapImage ? undefined : "#e2e8f0",
-        }}
-      >
+            backgroundColor: mapImage ? undefined : "hsl(var(--muted))",
+          }}
+        >
           <div
             className="pointer-events-none absolute inset-0"
             style={{
@@ -191,9 +193,9 @@ export function MapCanvas({
             }}
           />
 
-          {!mapImage ? (
+          {mapImage === null ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <p className="rounded-md border border-dashed border-stone-300 bg-white/70 px-4 py-2 text-sm text-stone-600">
+              <p className="rounded-md border border-dashed border-border bg-background px-4 py-2 text-sm text-muted-foreground">
                 지도를 업로드해서 편집을 시작하세요
               </p>
             </div>

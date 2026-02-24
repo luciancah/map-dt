@@ -42,9 +42,10 @@ type AppShellProps = {
   children: React.ReactNode;
 };
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children }: Readonly<AppShellProps>) {
   const pathname = usePathname();
   const pageTitle = useMemo(() => getPageTitle(pathname), [pathname]);
+  const isWorldEditorRoute = pathname.startsWith("/world-editor");
 
   return (
     <SidebarProvider>
@@ -78,7 +79,13 @@ export function AppShell({ children }: AppShellProps) {
               </div>
             </header>
 
-            <main className="mx-auto min-w-0 w-full max-w-[1680px] flex-1 px-4 pb-8 pt-4 md:px-6 lg:px-8">
+            <main
+              className={
+                isWorldEditorRoute
+                  ? "min-w-0 w-full flex-1 p-0"
+                  : "mx-auto min-w-0 w-full max-w-[1680px] flex-1 px-4 pb-8 pt-4 md:px-6 lg:px-8"
+              }
+            >
               {children}
             </main>
           </SidebarInset>
