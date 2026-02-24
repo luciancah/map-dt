@@ -49,7 +49,15 @@ export function useWorldEditorController() {
   const [keepoutReason, setKeepoutReason] = useState("");
   const [worldImageUrl, setWorldImageUrl] = useState("");
 
-  const displaySize = useCanvasViewport(mapImage?.width, mapImage?.height);
+  const displaySize = useCanvasViewport(
+    mapImage?.width,
+    mapImage?.height,
+    {
+      reservedWidthPx: 700,
+      topPaddingPx: 210,
+      minHeightPx: 320,
+    },
+  );
   const gridStepPx = useMemo(
     () => (mapImage?.width ? Math.max(1, Math.floor(mapImage.width / DEFAULT_GRID_COUNT)) : 1),
     [mapImage?.width],

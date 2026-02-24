@@ -16,6 +16,7 @@ import { DraftShapes } from "@/components/map-canvas/DraftShapes";
 import { PoiLayer } from "@/components/map-canvas/PoiLayer";
 import { PolygonLayer } from "@/components/map-canvas/PolygonLayer";
 import { RectLayer } from "@/components/map-canvas/RectLayer";
+import { cn } from "@/lib/utils";
 
 type MapCanvasProps = {
   frameRef: React.RefObject<HTMLDivElement | null>;
@@ -49,6 +50,7 @@ type MapCanvasProps = {
   displayWidth?: number;
   displayHeight?: number;
   displayScale?: number;
+  className?: string;
 };
 
 const DEFAULT_LAYER_OPACITY = 0.35;
@@ -75,6 +77,7 @@ export function MapCanvas({
   displayWidth,
   displayHeight,
   displayScale = 1,
+  className,
 }: MapCanvasProps) {
   const [hoveredPolygonEdge, setHoveredPolygonEdge] =
     React.useState<HoveredPolygonEdge>(null);
@@ -155,8 +158,13 @@ export function MapCanvas({
   }, [tool]);
 
   return (
-    <section className="rounded-2xl border border-stone-300 bg-stone-100 p-3 shadow-sm">
-      <div className="relative min-h-[320px] overflow-auto rounded-xl border border-stone-300">
+    <section
+      className={cn(
+        "relative min-h-0 h-full w-full rounded-lg border border-stone-300 bg-stone-100 p-3 shadow-sm",
+        className,
+      )}
+    >
+      <div className="relative h-full min-h-0 overflow-auto rounded-xl border border-stone-300">
         <div
           ref={frameRef}
           onPointerDown={onPointerDown}
@@ -172,8 +180,8 @@ export function MapCanvas({
             backgroundPosition: "0 0",
             backgroundSize: mapImage ? "100% 100%" : "auto",
             backgroundColor: mapImage ? undefined : "#e2e8f0",
-          }}
-        >
+        }}
+      >
           <div
             className="pointer-events-none absolute inset-0"
             style={{

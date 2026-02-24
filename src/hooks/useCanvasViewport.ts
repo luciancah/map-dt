@@ -12,32 +12,31 @@ type MapDisplaySize = {
   scale: number;
 };
 
-const LAPTOP_BREAKPOINT = 1024;
-const WIDE_DESKTOP_BREAKPOINT = 1440;
-const STANDARD_PANEL_WIDTH = 420;
-const WIDE_LAYOUT_RESERVED_WIDTH = 760;
-const CANVAS_PAGE_PADDING_X = 72;
-const CANVAS_TOP_PADDING_Y = 240;
+const CANVAS_PADDING_X = 32;
+const CANVAS_PADDING_Y = 24;
+const DEFAULT_RESERVED_WIDTH = 0;
+
+type CanvasViewportLayout = {
+  reservedWidthPx?: number;
+  topPaddingPx?: number;
+  minWidthPx?: number;
+  minHeightPx?: number;
+};
 
 const getFittedMapDisplaySize = (
   imageWidth: number,
   imageHeight: number,
   viewportWidth: number,
   viewportHeight: number,
+  layout: Required<CanvasViewportLayout>,
 ): MapDisplaySize => {
-  let reservedWidth = 0;
-  if (viewportWidth >= WIDE_DESKTOP_BREAKPOINT) {
-    reservedWidth = WIDE_LAYOUT_RESERVED_WIDTH;
-  } else if (viewportWidth >= LAPTOP_BREAKPOINT) {
-    reservedWidth = STANDARD_PANEL_WIDTH;
-  }
   const availableWidth = Math.max(
-    360,
-    viewportWidth - reservedWidth - CANVAS_PAGE_PADDING_X,
+    layout.minWidthPx,
+    viewportWidth - layout.reservedWidthPx - CANVAS_PADDING_X,
   );
   const availableHeight = Math.max(
-    280,
-    viewportHeight - CANVAS_TOP_PADDING_Y,
+    layout.minHeightPx,
+    viewportHeight - layout.topPaddingPx,
   );
 
   const widthScale = availableWidth / imageWidth;
@@ -56,7 +55,11 @@ const getViewport = (): Viewport => ({
   height: globalThis.window.innerHeight,
 });
 
-export const useCanvasViewport = (mapWidth?: number | null, mapHeight?: number | null) => {
+export function useCanvasViewport(
+  mapWidth?: number | null,
+  mapHeight?: number | null,
+  layout: CanvasViewportLayout = {},
+) {
   const [viewport, setViewport] = useState<Viewport>(() =>
     globalThis.window === undefined
       ? { width: 1280, height: 720 }
@@ -72,11 +75,28 @@ export const useCanvasViewport = (mapWidth?: number | null, mapHeight?: number |
   return useMemo(() => {
     const baseWidth = mapWidth ?? EDITOR_RULES.fallbackMapWidth;
     const baseHeight = mapHeight ?? EDITOR_RULES.fallbackMapHeight;
+    const normalizedLayout = {
+      reservedWidthPx: layout.reservedWidthPx ?? DEFAULT_RESERVED_WIDTH,
+      topPaddingPx: layout.topPaddingPx ?? CANVAS_PADDING_Y,
+      minWidthPx: layout.minWidthPx ?? 360,
+      minHeightPx: layout.minHeightPx ?? 280,
+    };
+
     return getFittedMapDisplaySize(
       baseWidth,
       baseHeight,
       viewport.width,
       viewport.height,
+      normalizedLayout,
     );
-  }, [mapHeight, mapWidth, viewport.height, viewport.width]);
-};
+  }, [
+    layout.minHeightPx,
+    layout.minWidthPx,
+    layout.reservedWidthPx,
+    layout.topPaddingPx,
+    mapHeight,
+    mapWidth,
+    viewport.height,
+    viewport.width,
+  ]);
+}

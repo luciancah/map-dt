@@ -16,6 +16,7 @@ type LayerListPanelProps = {
   onSelectLayer: (layerId: string) => void;
   onToggleLayerVisibility: (layerId: string) => void;
   onDeleteLayer: (layerId: string) => void;
+  className?: string;
 };
 
 export function LayerListPanel({
@@ -24,6 +25,7 @@ export function LayerListPanel({
   onSelectLayer,
   onToggleLayerVisibility,
   onDeleteLayer,
+  className,
 }: LayerListPanelProps) {
   const visibleLayers = layers.slice().reverse();
   const layerZIndexById = new Map(
@@ -51,7 +53,7 @@ export function LayerListPanel({
   };
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle>Layers</CardTitle>
         <CardDescription>
