@@ -1,124 +1,58 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import type { ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mapApi } from "@/lib/api/client";
-import type { ChangeEvent } from "react";
-import type { MapEntity } from "@/lib/api/types";
-
-const MAP_NAME_ERROR = "이름은 1~100자 사이여야 합니다.";
+import { useMapsCrud } from "@/features/maps/hooks/useMapsCrud";
 
 export default function MapsPage() {
-  const [maps, setMaps] = useState<MapEntity[]>([]);
-  const [name, setName] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [listError, setListError] = useState("");
-  const [createError, setCreateError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingName, setEditingName] = useState("");
+  const {
+    maps,
+    loading,
+    listError,
+    createError,
+    actionError,
+    createOpen,
+    createName,
+    editingId,
+    editingName,
+    setCreateOpen,
+    setCreateName,
+    setEditingName,
+    loadMaps,
+    createMap,
+    beginRename,
+    cancelRename,
+    submitRename,
+    removeMap,
+    uploadSensorMap,
+  } = useMapsCrud();
+
   const fileInputs = useRef<Record<number, HTMLInputElement | null>>({});
 
-  const loadMaps = async () => {
-    const mapList = await mapApi.list();
-    setMaps(mapList);
-    setListError("");
-  };
-
-  useEffect(() => {
-    loadMaps().catch((error_) => {
-      const message =
-        error_ instanceof Error ? error_.message : "지도 목록 조회 실패";
-      setListError(message);
-    });
-  }, []);
-
-  const createMap = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+  const submitCreate = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const nextName = name.trim();
-    if (nextName.length < 1 || nextName.length > 100) {
-      setCreateError(MAP_NAME_ERROR);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const created = await mapApi.create(nextName);
-      setMaps((prev) => [...prev, created]);
-      setName("");
-      setCreateError("");
-      setCreateOpen(false);
-    } catch (error_) {
-      const message =
-        error_ instanceof Error ? error_.message : "맵 생성 실패";
-      setCreateError(message);
-    } finally {
-      setLoading(false);
-    }
+    await createMap();
   };
 
-  const beginRename = (map: MapEntity) => {
-    setEditingId(map.id);
-    setEditingName(map.name);
-  };
-
-  const cancelRename = () => {
-    setEditingId(null);
-    setEditingName("");
-  };
-
-  const submitRename = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+  const submitEdit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!editingId) return;
-
-    const nextName = editingName.trim();
-    if (nextName.length < 1 || nextName.length > 100) {
-      setActionError(MAP_NAME_ERROR);
-      return;
-    }
-
-    try {
-      const updated = await mapApi.update(editingId, nextName);
-      setMaps((prev) =>
-        prev.map((map) => (map.id === editingId ? { ...map, ...updated } : map)),
-      );
-      setEditingId(null);
-      setActionError("");
-    } catch {
-      setActionError("맵 이름 수정 실패");
-    }
+    await submitRename();
   };
 
-  const removeMap = async (mapId: number) => {
-    try {
-      await mapApi.remove(mapId);
-      setMaps((prev) => prev.filter((map) => map.id !== mapId));
-      if (editingId === mapId) {
-        cancelRename();
-      }
-    } catch {
-      setActionError("맵 삭제 실패");
-    }
-  };
-
-  const uploadSensorMap = async (
+  const handleUploadSensorMap = async (
     event: ChangeEvent<HTMLInputElement>,
     mapId: number,
   ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+    const file = event.target.files?.[0] ?? null;
     try {
-      const next = await mapApi.uploadSensorMap(mapId, file);
-      setMaps((prev) => prev.map((map) => (map.id === mapId ? next : map)));
-    } catch {
-      setActionError("맵 이미지 업로드 실패");
+      await uploadSensorMap(mapId, file);
     } finally {
       event.target.value = "";
     }
@@ -160,10 +94,7 @@ export default function MapsPage() {
                   <div key={map.id} className="rounded-md border p-2">
                     <div className="flex flex-wrap items-center gap-2">
                       {editingId === map.id ? (
-                        <form
-                          onSubmit={submitRename}
-                          className="flex flex-1 items-center gap-2"
-                        >
+                        <form onSubmit={submitEdit} className="flex flex-1 items-center gap-2">
                           <Input
                             value={editingName}
                             onChange={(event) =>
@@ -224,7 +155,7 @@ export default function MapsPage() {
                         }}
                         type="file"
                         accept="image/*"
-                        onChange={(event) => uploadSensorMap(event, map.id)}
+                        onChange={(event) => handleUploadSensorMap(event, map.id)}
                         className="hidden"
                       />
                     </div>
@@ -246,6 +177,9 @@ export default function MapsPage() {
           <p className="text-xs text-muted-foreground">
             API: {process.env.NEXT_PUBLIC_TUDUBEM_API_URL ?? "http://localhost:8080"}
           </p>
+          <Button variant="outline" size="sm" onClick={loadMaps} type="button">
+            목록 새로고침
+          </Button>
         </CardContent>
       </Card>
 
@@ -254,18 +188,18 @@ export default function MapsPage() {
         onOpenChange={(open) => {
           setCreateOpen(open);
           if (!open) {
-            setCreateError("");
+            setCreateName("");
           }
         }}
         title="새 지도 생성"
         description="새 지도 이름을 입력하고 생성합니다."
       >
-        <form onSubmit={createMap} className="space-y-3">
+        <form onSubmit={submitCreate} className="space-y-3">
           <Label htmlFor="new-map-name">맵 이름</Label>
           <Input
             id="new-map-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
+            value={createName}
+            onChange={(event) => setCreateName(event.target.value)}
             placeholder="맵 이름"
             maxLength={100}
           />
@@ -276,7 +210,6 @@ export default function MapsPage() {
               variant="outline"
               onClick={() => {
                 setCreateOpen(false);
-                setCreateError("");
               }}
             >
               취소

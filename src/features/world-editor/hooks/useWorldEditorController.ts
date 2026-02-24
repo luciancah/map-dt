@@ -1,58 +1,53 @@
 "use client";
 
-import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useMemo, useState } from "react";
+import type { MapImage, LayerContext, Tool } from "@/lib/map-editor/types";
 import { useCanvasViewport } from "@/hooks/useCanvasViewport";
 import { useRectLayerEditor } from "@/hooks/useRectLayerEditor";
-import type { Layer, LayerContext, MapImage, Tool } from "@/lib/map-editor/types";
+import { useMapSelection } from "@/features/world-editor/hooks/useMapSelection";
 import {
   CONTEXT_OPTIONS,
-  DEFAULT_AREA_TYPE,
   DEFAULT_GRID_COUNT,
-  DEFAULT_METADATA_JSON,
 } from "@/features/world-editor/world-editor-constants";
 import {
   buildWorldImage,
   deleteLayer,
-  ensurePolygonLayer,
-  loadMapAsset,
-  loadMapLayers,
   saveLayer,
-  toServerState,
 } from "@/features/world-editor/services/world-editor-service";
 import { getDefaultLayerColorByContext } from "@/lib/map-editor/layer-colors";
-import { useMapSelection } from "@/features/world-editor/hooks/useMapSelection";
+import { useWorldEditorMapLoader } from "@/features/world-editor/hooks/useWorldEditorMapLoader";
+import {
+  useWorldEditorInspectorForm,
+  type UseWorldEditorInspectorFormResult,
+} from "@/features/world-editor/hooks/useWorldEditorInspectorForm";
+import { useWorldEditorLayerMutations } from "@/features/world-editor/hooks/useWorldEditorLayerMutations";
 
 export type WorldEditorController = ReturnType<typeof useWorldEditorController>;
 
 export function useWorldEditorController() {
   const [mapImage, setMapImage] = useState<MapImage | null>(null);
   const [layerContext, setLayerContext] = useState<LayerContext>("area");
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [areaType, setAreaType] = useState(DEFAULT_AREA_TYPE);
-  const [metadataJson, setMetadataJson] = useState(DEFAULT_METADATA_JSON);
-  const [keepoutEnabled, setKeepoutEnabled] = useState(true);
-  const [keepoutReason, setKeepoutReason] = useState("");
   const [worldImageUrl, setWorldImageUrl] = useState("");
 
-  const displaySize = useCanvasViewport(
-    mapImage?.width,
-    mapImage?.height,
-    {
-      reservedWidthPx: 560,
-      topPaddingPx: 210,
-      minHeightPx: 320,
-    },
-  );
+  const {
+    mapOptions,
+    selectedMap,
+    selectedMapId,
+    onMapSelect,
+  } = useMapSelection();
+
+  const displaySize = useCanvasViewport(mapImage?.width, mapImage?.height, {
+    reservedWidthPx: 560,
+    topPaddingPx: 210,
+    minHeightPx: 320,
+  });
+
   const gridStepPx = useMemo(
-    () => (mapImage?.width ? Math.max(1, Math.floor(mapImage.width / DEFAULT_GRID_COUNT)) : 1),
+    () =>
+      mapImage?.width
+        ? Math.max(1, Math.floor(mapImage.width / DEFAULT_GRID_COUNT))
+        : 1,
     [mapImage?.width],
   );
 
@@ -85,105 +80,55 @@ export function useWorldEditorController() {
     defaultLayerContext: layerContext,
   });
 
-  const {
-    mapsError,
-    mapOptions,
+  const mapLoader = useWorldEditorMapLoader({
     selectedMap,
     selectedMapId,
-    onMapSelect,
-  } = useMapSelection();
+    clearAllLayers,
+    setLayersFromServer,
+    onMessage: setMessage,
+    onMapImageChange: setMapImage,
+  });
 
-  useEffect(() => {
-    setDefaultLayerContext(layerContext);
-  }, [layerContext, setDefaultLayerContext]);
+  const inspectorForm: UseWorldEditorInspectorFormResult =
+    useWorldEditorInspectorForm({
+      selectedLayer,
+      defaultLayerContext: layerContext,
+    });
 
-  useEffect(() => {
-    if (!selectedMapId) {
-      clearAllLayers();
-      setMapImage(null);
-      setWorldImageUrl("");
-      return;
-    }
-
-    if (!selectedMap) {
-      clearAllLayers();
-      setMapImage(null);
-      setMessage("선택한 맵을 찾을 수 없습니다.");
-      return;
-    }
-
-    if (!selectedMap.sensorMapImagePath) {
-      clearAllLayers();
-      setMapImage(null);
-      setMessage("센서맵이 없습니다.");
-      return;
-    }
-
-    let disposed = false;
-    let objectUrl = "";
-
-    const load = async () => {
-      setLoading(true);
-      setMessage("");
-      setWorldImageUrl("");
-      clearAllLayers();
-
-      const loadedImage = await loadMapAsset(selectedMap);
-      if (disposed) {
-        URL.revokeObjectURL(loadedImage.src);
-        return;
+  const setWorldImageUrlWithCleanup = useCallback(
+    (nextUrl: string) => {
+      if (worldImageUrl) {
+        URL.revokeObjectURL(worldImageUrl);
       }
+      setWorldImageUrl(nextUrl);
+    },
+    [worldImageUrl],
+  );
 
-      objectUrl = loadedImage.src;
-      setMapImage(loadedImage);
-
-      const nextLayers = await loadMapLayers(selectedMap.id, loadedImage.height);
-      if (!disposed) {
-        setLayersFromServer(nextLayers);
-      }
-    };
-
-    load()
-      .catch((caught) => {
-        if (!disposed) {
-          setMessage(caught instanceof Error ? caught.message : "맵 로딩 실패");
-        }
-      })
-      .finally(() => {
-        if (!disposed) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      disposed = true;
-      clearAllLayers();
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [clearAllLayers, selectedMap, selectedMapId, setLayersFromServer]);
-
-  useEffect(() => {
-    if (!selectedLayer) {
-      setKeepoutEnabled(true);
-      setKeepoutReason("");
-      setAreaType(DEFAULT_AREA_TYPE);
-      setMetadataJson(DEFAULT_METADATA_JSON);
-      return;
-    }
-
-    setKeepoutEnabled(selectedLayer.serverEnabled ?? true);
-    setKeepoutReason(selectedLayer.serverReason ?? "");
-    setAreaType(selectedLayer.serverType ?? DEFAULT_AREA_TYPE);
-    setMetadataJson(selectedLayer.serverMetadataJson ?? DEFAULT_METADATA_JSON);
-    setLayerContext(selectedLayer.context ?? "area");
-  }, [selectedLayer]);
-
-  const mapSelectErrorMessage =
-    mapImage === null && selectedMap?.sensorMapImagePath
-      ? "맵 이미지를 로드할 수 없습니다."
-      : "";
+  const mutation = useWorldEditorLayerMutations({
+    selectedLayer,
+    selectedMapId,
+    mapImage,
+    layerContext,
+    layers,
+    areaType: inspectorForm.areaType,
+    metadataJson: inspectorForm.metadataJson,
+    keepoutEnabled: inspectorForm.keepoutEnabled,
+    keepoutReason: inspectorForm.keepoutReason,
+    setLayersFromServer,
+    setMessage,
+    renameLayer,
+    removeLayer,
+    onContextUpdated: (nextContext) => {
+      setLayerContext(nextContext);
+      setDefaultLayerContext(nextContext);
+    },
+    saveLayer,
+    deleteLayer,
+    buildWorldImage,
+    getDefaultColorByContext: getDefaultLayerColorByContext,
+    setWorldImageUrl: setWorldImageUrlWithCleanup,
+  });
 
   const setToolAndContext = useCallback(
     (nextTool: Tool) => {
@@ -194,150 +139,50 @@ export function useWorldEditorController() {
 
       setTool(nextTool);
     },
-    [mapImage, setTool],
+    [mapImage, setMessage, setTool],
   );
 
   const selectLayerAndApplyContext = useCallback(
     (layerId: string) => {
       selectLayer(layerId);
-      const next = layers.find((layer) => layer.id === layerId);
-      if (next) {
-        setLayerContext(next.context ?? "area");
-      }
+
+      const nextLayer = layers.find((layer) => layer.id === layerId);
+      const nextContext = nextLayer?.context ?? "area";
+      setLayerContext(nextContext);
+      inspectorForm.setSelectedLayerContext(nextContext);
+      setDefaultLayerContext(nextContext);
     },
-    [layers, selectLayer],
+    [inspectorForm, layers, selectLayer, setDefaultLayerContext],
   );
 
   const updateSelectedLayerContext = useCallback(
     (nextContext: LayerContext) => {
       setLayerContext(nextContext);
-      if (!selectedLayer) return;
-
-      const nextColor = getDefaultLayerColorByContext(nextContext);
-      setLayersFromServer(
-        layers.map((layer) =>
-          layer.id === selectedLayer.id
-            ? { ...layer, context: nextContext, color: nextColor }
-            : layer,
-        ),
-      );
+      inspectorForm.setSelectedLayerContext(nextContext);
+      setDefaultLayerContext(nextContext);
+      mutation.updateSelectedLayerContext(nextContext);
     },
-    [layers, selectedLayer, setLayersFromServer],
+    [inspectorForm, mutation, setDefaultLayerContext],
   );
 
   const onRename = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      if (!selectedLayer) return;
-
-      const nextName = new FormData(event.currentTarget)
-        .get("layerName")
-        ?.toString()
-        ?.trim();
-      if (!nextName) return;
-
-      const updated = renameLayer(selectedLayer.id, nextName);
-      if (!updated) {
-        setMessage("이미 사용 중인 레이어 이름입니다.");
-      }
+    (event: React.FormEvent<HTMLFormElement>) => {
+      mutation.onRename(event);
     },
-    [renameLayer, selectedLayer],
+    [mutation],
   );
 
   const saveSelectedLayer = useCallback(async () => {
-    if (!selectedLayer || !selectedMapId || !mapImage) return;
-
-    const polygonLayer = ensurePolygonLayer(selectedLayer);
-    if (!polygonLayer || !polygonLayer.points?.length) {
-      setMessage("폴리곤 좌표 생성에 실패했습니다.");
-      return;
-    }
-
-    const context = polygonLayer.context ?? layerContext;
-    setSaving(true);
-    setMessage("");
-
-    try {
-      const result = await saveLayer(
-        selectedMapId,
-        polygonLayer,
-        context,
-        areaType,
-        metadataJson,
-        keepoutEnabled,
-        keepoutReason,
-        mapImage.height,
-      );
-
-      const nextState = toServerState(context, result.entity);
-      const nextLayers = layers.map((layer): Layer =>
-        layer.id === polygonLayer.id
-          ? {
-              ...layer,
-              ...polygonLayer,
-              context,
-              shape: "polygon" as const,
-              serverId: nextState.serverId,
-              serverType: nextState.serverType,
-              serverMetadataJson: nextState.serverMetadataJson,
-              serverEnabled: nextState.serverEnabled,
-              serverReason: nextState.serverReason,
-            } as Layer
-          : layer,
-      );
-      setLayersFromServer(nextLayers);
-      setMessage("저장했습니다.");
-    } catch {
-      setMessage("저장 실패");
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    areaType,
-    keepoutEnabled,
-    keepoutReason,
-    layerContext,
-    mapImage,
-    metadataJson,
-    layers,
-    selectedLayer,
-    selectedMapId,
-    setLayersFromServer,
-  ]);
+    await mutation.saveSelectedLayer();
+  }, [mutation]);
 
   const deleteSelectedLayer = useCallback(async () => {
-    if (!selectedLayer || !selectedMapId) return;
-
-    try {
-      if (selectedLayer.serverId) {
-        await deleteLayer(selectedMapId, selectedLayer);
-      }
-      removeLayer(selectedLayer.id);
-      setMessage("삭제했습니다.");
-    } catch {
-      setMessage("삭제 실패");
-    }
-  }, [removeLayer, selectedLayer, selectedMapId]);
+    await mutation.deleteSelectedLayer();
+  }, [mutation]);
 
   const buildWorld = useCallback(async () => {
-    if (!selectedMapId) return;
-
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const blob = await buildWorldImage(selectedMapId);
-      if (worldImageUrl) {
-        URL.revokeObjectURL(worldImageUrl);
-      }
-      setWorldImageUrl(URL.createObjectURL(blob));
-      setMessage("빌드 완료");
-    } catch {
-      setMessage("빌드 실패");
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedMapId, worldImageUrl]);
+    await mutation.buildWorld();
+  }, [mutation]);
 
   return {
     mapOptions,
@@ -347,14 +192,14 @@ export function useWorldEditorController() {
     selectedId,
     selectedLayer,
     selectedMap,
-    loading,
-    saving,
-    message: mapsError || message || mapSelectErrorMessage,
+    loading: mapLoader.loading || mutation.saving,
+    saving: mutation.saving,
+    message,
     worldImageUrl,
-    areaType,
-    metadataJson,
-    keepoutEnabled,
-    keepoutReason,
+    areaType: inspectorForm.areaType,
+    metadataJson: inspectorForm.metadataJson,
+    keepoutEnabled: inspectorForm.keepoutEnabled,
+    keepoutReason: inspectorForm.keepoutReason,
     layerContext,
     contextOptions: CONTEXT_OPTIONS,
     frameRef,
@@ -378,10 +223,11 @@ export function useWorldEditorController() {
     buildWorld,
     displaySize,
     gridStepPx,
-    setAreaType,
-    setMetadataJson,
-    setKeepoutEnabled,
-    setKeepoutReason,
+    setAreaType: inspectorForm.setAreaType,
+    setMetadataJson: inspectorForm.setMetadataJson,
+    setKeepoutEnabled: inspectorForm.setKeepoutEnabled,
+    setKeepoutReason: inspectorForm.setKeepoutReason,
     setLayerContext,
+    reloadMap: mapLoader.reloadMap,
   };
 }
