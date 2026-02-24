@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Settings, Sparkles } from "lucide-react";
+import { Building2 } from "lucide-react";
 
 import {
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -47,7 +46,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
             </span>
             <div className={showText ? "min-w-0" : "sr-only"}>
               <p className="truncate text-xs font-semibold tracking-wide">PG Map Twin</p>
-              <p className="truncate text-[11px] text-sidebar-foreground/70">Enterprise Workspace</p>
             </div>
           </div>
         </div>
@@ -78,47 +76,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="추후 지원 예정"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    closeMobileNav();
-                  }}
-                >
-                  <Sparkles className="size-4 opacity-90" aria-hidden="true" />
-                  <span className={cn("truncate", showText ? "" : "sr-only")}>Starred</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="설정"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    closeMobileNav();
-                  }}
-                >
-                  <Settings className="size-4 opacity-90" aria-hidden="true" />
-                  <span className={cn("truncate", showText ? "" : "sr-only")}>Settings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter>
-        <div className={cn("space-y-1 px-2", showText ? "" : "sr-only")}>
-          <p className="text-xs font-medium text-sidebar-foreground">Lucian Cah</p>
-          <p className="text-[11px] text-sidebar-foreground/70">
-            최신 맵/엔티티 관리와 월드 빌드를 한 화면에서 운영합니다.
-          </p>
-        </div>
-      </SidebarFooter>
     </nav>
   );
 }
