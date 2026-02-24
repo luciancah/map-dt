@@ -83,48 +83,93 @@ export default function WorldEditorPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            컨텍스트
-            {mapImage ? (
-              <span className="text-xs text-muted-foreground">
-                {mapImage.width} x {mapImage.height}
-              </span>
-            ) : null}
-          </CardTitle>
-          <CardDescription>편집할 맵과 레이어 컨텍스트를 선택합니다.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-2">
-          <Label htmlFor="map-select" className="text-sm text-muted-foreground">
-            Map
-          </Label>
-          {mapOptions.length === 0 ? (
-            <p className="text-xs text-muted-foreground">맵이 없습니다.</p>
-          ) : (
-            <Select
-              value={selectedMapValue || undefined}
-              onValueChange={onMapSelect}
-              disabled={loading}
-            >
-              <SelectTrigger id="map-select" className="h-8 min-w-[220px]">
-                <SelectValue placeholder="맵 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {mapOptions.map((item) => (
-                  <SelectItem key={item.id} value={String(item.id)}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <div className="ml-auto text-xs text-muted-foreground">{message}</div>
-        </CardContent>
-      </Card>
+      <p className="text-xs text-muted-foreground">{message}</p>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-        <section className="space-y-3">
+      <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
+        <aside className="space-y-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex flex-wrap items-center gap-2">
+                컨텍스트
+                {mapImage ? (
+                  <span className="text-xs text-muted-foreground">
+                    {mapImage.width} x {mapImage.height}
+                  </span>
+                ) : null}
+              </CardTitle>
+              <CardDescription>편집할 맵과 기본 컨텍스트를 선택합니다.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="map-select" className="text-sm text-muted-foreground">
+                  Map
+                </Label>
+                {mapOptions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">맵이 없습니다.</p>
+                ) : (
+                  <Select
+                    value={selectedMapValue || undefined}
+                    onValueChange={onMapSelect}
+                    disabled={loading}
+                  >
+                    <SelectTrigger id="map-select" className="h-9 w-full">
+                      <SelectValue placeholder="맵 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mapOptions.map((item) => (
+                        <SelectItem key={item.id} value={String(item.id)}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">툴</Label>
+                <div className="flex flex-wrap gap-2">
+                  {TOOL_OPTIONS.map((option) => (
+                    <Button
+                      key={option.id}
+                      size="sm"
+                      variant={tool === option.id ? "default" : "outline"}
+                      onClick={() => setToolAndContext(option.id)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">레이어 컨텍스트</Label>
+                <div className="flex flex-wrap gap-2">
+                  {contextOptions.map((option) => (
+                    <Button
+                      key={option.id}
+                      size="sm"
+                      variant={option.id === selectedLayerContext ? "secondary" : "outline"}
+                      onClick={() => updateSelectedLayerContext(option.id)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <LayerListPanel
+            layers={layers}
+            selectedId={selectedId}
+            onSelectLayer={selectLayerAndApplyContext}
+            onToggleLayerVisibility={toggleLayerVisible}
+            onDeleteLayer={removeLayer}
+          />
+        </aside>
+
+        <section className="min-w-0 space-y-3">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle>Canvas</CardTitle>
@@ -135,30 +180,6 @@ export default function WorldEditorPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                {TOOL_OPTIONS.map((option) => (
-                  <Button
-                    key={option.id}
-                    size="sm"
-                    variant={tool === option.id ? "default" : "outline"}
-                    onClick={() => setToolAndContext(option.id)}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-
-                {contextOptions.map((option) => (
-                  <Button
-                    key={option.id}
-                    size="sm"
-                    variant={option.id === selectedLayerContext ? "secondary" : "outline"}
-                    onClick={() => updateSelectedLayerContext(option.id)}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-
               {mapImage ? (
                 <MapCanvas
                   frameRef={frameRef}
@@ -185,7 +206,9 @@ export default function WorldEditorPage() {
               )}
             </CardContent>
           </Card>
+        </section>
 
+        <aside className="space-y-3">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle>Build 결과</CardTitle>
@@ -205,16 +228,6 @@ export default function WorldEditorPage() {
               )}
             </CardContent>
           </Card>
-        </section>
-
-        <aside className="space-y-3">
-          <LayerListPanel
-            layers={layers}
-            selectedId={selectedId}
-            onSelectLayer={selectLayerAndApplyContext}
-            onToggleLayerVisibility={toggleLayerVisible}
-            onDeleteLayer={removeLayer}
-          />
 
           {selectedLayer ? (
             <Card>
@@ -271,7 +284,7 @@ export default function WorldEditorPage() {
                         checked={keepoutEnabled}
                         onChange={(event) => setKeepoutEnabled(event.target.checked)}
                       />
-                      Keepout 활성화
+                      <span>Keepout 활성화</span>
                     </label>
                     <div className="space-y-1.5">
                       <Label htmlFor={`reason-${selectedLayer.id}`}>Reason</Label>
@@ -300,7 +313,19 @@ export default function WorldEditorPage() {
                 </div>
               </CardContent>
             </Card>
-          ) : null}
+          ) : (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle>Inspector</CardTitle>
+                <CardDescription>선택된 레이어의 세부 설정을 표시합니다.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="rounded-md border border-dashed bg-card p-4 text-sm text-muted-foreground">
+                  레이어를 선택하면 속성 편집이 가능합니다.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </aside>
       </div>
     </div>

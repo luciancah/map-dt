@@ -12,10 +12,12 @@ type MapDisplaySize = {
   scale: number;
 };
 
-const DESKTOP_BREAKPOINT = 1024;
-const BASELINE_PANEL_WIDTH = 420;
-const CANVAS_PAGE_PADDING_X = 32;
-const CANVAS_TOP_PADDING_Y = 210;
+const LAPTOP_BREAKPOINT = 1024;
+const WIDE_DESKTOP_BREAKPOINT = 1440;
+const STANDARD_PANEL_WIDTH = 420;
+const WIDE_LAYOUT_RESERVED_WIDTH = 760;
+const CANVAS_PAGE_PADDING_X = 72;
+const CANVAS_TOP_PADDING_Y = 240;
 
 const getFittedMapDisplaySize = (
   imageWidth: number,
@@ -23,13 +25,18 @@ const getFittedMapDisplaySize = (
   viewportWidth: number,
   viewportHeight: number,
 ): MapDisplaySize => {
-  const reservedWidth = viewportWidth >= DESKTOP_BREAKPOINT ? BASELINE_PANEL_WIDTH : 0;
+  let reservedWidth = 0;
+  if (viewportWidth >= WIDE_DESKTOP_BREAKPOINT) {
+    reservedWidth = WIDE_LAYOUT_RESERVED_WIDTH;
+  } else if (viewportWidth >= LAPTOP_BREAKPOINT) {
+    reservedWidth = STANDARD_PANEL_WIDTH;
+  }
   const availableWidth = Math.max(
-    320,
+    360,
     viewportWidth - reservedWidth - CANVAS_PAGE_PADDING_X,
   );
   const availableHeight = Math.max(
-    240,
+    280,
     viewportHeight - CANVAS_TOP_PADDING_Y,
   );
 
@@ -45,21 +52,21 @@ const getFittedMapDisplaySize = (
 };
 
 const getViewport = (): Viewport => ({
-  width: window.innerWidth,
-  height: window.innerHeight,
+  width: globalThis.window.innerWidth,
+  height: globalThis.window.innerHeight,
 });
 
 export const useCanvasViewport = (mapWidth?: number | null, mapHeight?: number | null) => {
   const [viewport, setViewport] = useState<Viewport>(() =>
-    typeof window === "undefined"
+    globalThis.window === undefined
       ? { width: 1280, height: 720 }
       : getViewport(),
   );
 
   useEffect(() => {
     const updateViewportSize = () => setViewport(getViewport());
-    window.addEventListener("resize", updateViewportSize);
-    return () => window.removeEventListener("resize", updateViewportSize);
+    globalThis.window.addEventListener("resize", updateViewportSize);
+    return () => globalThis.window.removeEventListener("resize", updateViewportSize);
   }, []);
 
   return useMemo(() => {

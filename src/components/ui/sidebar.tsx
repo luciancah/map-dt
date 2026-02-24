@@ -93,8 +93,8 @@ type SidebarProps = React.ComponentProps<"aside"> & {
 function Sidebar({
   className,
   side = "left",
-  width = "16rem",
-  collapsedWidth = "3.5rem",
+  width = "17rem",
+  collapsedWidth = "4rem",
   children,
   ...props
 }: SidebarProps) {
@@ -112,7 +112,7 @@ function Sidebar({
           aria-label="사이드바 닫기"
           onClick={() => setOpenMobile(false)}
           className={cn(
-            "fixed inset-x-0 top-14 z-40 bg-black/50 transition-opacity duration-200",
+            "fixed inset-x-0 top-16 z-40 bg-black/50 transition-opacity duration-200",
             isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
           )}
         />
@@ -124,9 +124,9 @@ function Sidebar({
         data-side={side}
         className={cn(
           "group/sidebar z-50 flex flex-col border-r bg-sidebar text-sidebar-foreground shadow-sm",
-          "h-[calc(100dvh-3.5rem)] lg:h-screen",
-          isMobile ? "fixed inset-y-0 top-14" : "relative top-0",
-          "top-14 lg:top-0",
+          "h-[calc(100dvh-4rem)] lg:h-screen",
+          isMobile ? "fixed inset-y-0 top-16" : "relative top-0",
+          "top-16 lg:top-0",
           isMobile ? (side === "left" ? "left-0" : "right-0") : side === "left" ? "left-0" : "right-0",
           isMobile ? mobileTranslate : desktopTranslate,
           "transition-[width,transform] duration-200",
@@ -134,7 +134,7 @@ function Sidebar({
           isMobile ? "w-72" : "w-0",
           className,
         )}
-        style={{ width: isMobile ? "18rem" : desktopWidth }}
+        style={{ width: isMobile ? "18.5rem" : desktopWidth }}
         aria-label="사이드바"
         {...props}
       >
@@ -167,7 +167,7 @@ function SidebarTrigger({
       aria-controls="app-sidebar"
       data-state={isOpen ? "expanded" : "collapsed"}
       className={cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent",
+        "inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent",
         "transition-colors hover:bg-accent hover:text-accent-foreground",
         className,
       )}
