@@ -4,5 +4,4 @@ export const EDITOR_RULES = {
   fallbackMapHeight: 540,
   gridStep: 32,
   defaultGridCount: 64,
-  defaultRealWidthMeters: 1200,
 } as const;

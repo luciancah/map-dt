@@ -1,6 +1,4 @@
 "use client";
-
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -8,99 +6,43 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { robotApi } from "@/lib/api/client";
 import type { RobotEntity } from "@/lib/api/types";
+import { useNamedEntityCrud } from "@/features/entity-management/hooks/useNamedEntityCrud";
 
 export default function RobotsPage() {
-  const [items, setItems] = useState<RobotEntity[]>([]);
-  const [listError, setListError] = useState("");
-  const [createError, setCreateError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [name, setName] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingName, setEditingName] = useState("");
+  const {
+    items,
+    listError,
+    createError,
+    actionError,
+    createOpen,
+    creating,
+    createName,
+    editingId,
+    editingName,
+    setCreateName,
+    setEditingName,
+    setCreateOpen,
+    beginEdit,
+    cancelEdit,
+    create,
+    saveEdit,
+    remove,
+  } = useNamedEntityCrud<RobotEntity>({
+    fetchEntities: robotApi.list,
+    createEntity: robotApi.create,
+    updateEntity: robotApi.update,
+    deleteEntity: robotApi.remove,
+    validateName: (name) => (name ? "" : "Robot 이름은 비어 있을 수 없습니다."),
+  });
 
-  const load = async () => {
-    const list = await robotApi.list();
-    setItems(list);
-    setListError("");
-  };
-
-  useEffect(() => {
-    const loadRobots = async () => {
-      try {
-        await load();
-      } catch (error_) {
-        setListError(error_ instanceof Error ? error_.message : "Robot 조회 실패");
-      }
-    };
-
-    loadRobots();
-  }, []);
-
-  const createItem = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+  const submitCreate = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const nextName = name.trim();
-    if (!nextName) {
-      setCreateError("Robot 이름은 비어 있을 수 없습니다.");
-      return;
-    }
-
-    setCreating(true);
-    try {
-      const created = await robotApi.create(nextName);
-      setItems((prev) => [...prev, created]);
-      setName("");
-      setCreateError("");
-      setCreateOpen(false);
-    } catch {
-      setCreateError("Robot 생성 실패");
-    } finally {
-      setCreating(false);
-    }
+    await create();
   };
 
-  const beginEdit = (item: RobotEntity) => {
-    setEditingId(item.id);
-    setEditingName(item.name);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditingName("");
-  };
-
-  const saveEdit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+  const submitEdit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!editingId) return;
-
-    const nextName = editingName.trim();
-    if (!nextName) {
-      setActionError("Robot 이름은 비어 있을 수 없습니다.");
-      return;
-    }
-
-    try {
-      const updated = await robotApi.update(editingId, nextName);
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === editingId ? { ...item, ...updated } : item,
-        ),
-      );
-      cancelEdit();
-      setActionError("");
-    } catch {
-      setActionError("Robot 수정 실패");
-    }
-  };
-
-  const remove = async (id: number) => {
-    try {
-      await robotApi.remove(id);
-      setItems((prev) => prev.filter((item) => item.id !== id));
-    } catch {
-      setActionError("Robot 삭제 실패");
-    }
+    await saveEdit();
   };
 
   return (
@@ -136,7 +78,7 @@ export default function RobotsPage() {
               className="rounded-md border border-stone-200 p-2"
             >
               {editingId === item.id ? (
-                <form onSubmit={saveEdit} className="space-y-2">
+                <form onSubmit={submitEdit} className="space-y-2">
                   <div className="space-y-1">
                     <Label htmlFor={`robot-name-${item.id}`}>이름</Label>
                     <Input
@@ -166,10 +108,18 @@ export default function RobotsPage() {
                     <p className="text-xs text-muted-foreground">ID: {item.id}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => beginEdit(item)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => beginEdit(item)}
+                    >
                       수정
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => remove(item.id)}>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => remove(item.id)}
+                    >
                       삭제
                     </Button>
                   </div>
@@ -185,20 +135,20 @@ export default function RobotsPage() {
         onOpenChange={(open) => {
           setCreateOpen(open);
           if (!open) {
-            setCreateError("");
+            setCreateName("");
           }
         }}
         title="새 Robot 생성"
         description="Robot 이름을 입력해 목록에 추가합니다."
       >
-        <form onSubmit={createItem} className="space-y-3">
+        <form onSubmit={submitCreate} className="space-y-3">
           <div className="space-y-1">
             <Label htmlFor="new-robot-name">이름</Label>
             <Input
               id="new-robot-name"
-              value={name}
+              value={createName}
               maxLength={100}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => setCreateName(event.target.value)}
               placeholder="Robot 이름"
             />
           </div>
@@ -209,7 +159,6 @@ export default function RobotsPage() {
               variant="outline"
               onClick={() => {
                 setCreateOpen(false);
-                setCreateError("");
               }}
             >
               취소

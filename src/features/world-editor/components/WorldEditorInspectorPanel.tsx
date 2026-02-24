@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getLayerDisplayName } from "@/lib/map-editor/layer-display";
 import type { Layer, LayerContext } from "@/lib/map-editor/types";
 
 type WorldEditorInspectorPanelProps = {
@@ -38,6 +39,8 @@ export function WorldEditorInspectorPanel({
   saveSelectedLayer,
   deleteSelectedLayer,
 }: Readonly<WorldEditorInspectorPanelProps>) {
+  const displayName = selectedLayer ? getLayerDisplayName(selectedLayer) : "";
+
   return (
     <section className="flex h-full min-h-0 flex-col border-l bg-background">
       <header className="border-b px-3 py-2">
@@ -52,7 +55,7 @@ export function WorldEditorInspectorPanel({
               <Input
                 id={`layer-${selectedLayer.id}-name`}
                 name="layerName"
-                defaultValue={selectedLayer.name}
+                defaultValue={displayName}
                 className="flex-1"
               />
               <Button type="submit" size="sm">

@@ -1,5 +1,4 @@
-import type { Layer, LayerContext, Point } from "@/lib/map-editor/types";
-import { computePolygonBounds } from "./geometry";
+import type { Layer, Point } from "@/lib/map-editor/types";
 
 export const toApiVertices = (layer: Pick<Layer, "points" | "shape">, mapHeight: number): string => {
   if (!layer.points || layer.points.length < 3) {
@@ -28,18 +27,4 @@ export const fromApiVertices = (verticesJson: string, mapHeight: number): Point[
   } catch {
     return [];
   }
-};
-
-export const toLayerBounds = (points: Point[]) => {
-  const bounds = computePolygonBounds(points);
-  return {
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
-  };
-};
-
-export const makeServerLabel = (context: LayerContext, index: number): string => {
-  return `${context === "area" ? "Area" : "Keepout"} ${index + 1}`;
 };

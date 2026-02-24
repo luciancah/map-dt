@@ -1,5 +1,4 @@
-import type { Layer, LayerContext } from "@/lib/map-editor/types";
-import { makeUniqueLayerName } from "@/lib/map-editor/geometry";
+import type { Layer } from "@/lib/map-editor/types";
 import { fromApiVertices, toApiVertices } from "@/lib/map-editor/coords";
 import type { AreaEntity, KeepoutEntity } from "@/lib/api/types";
 import { getDefaultLayerColorByContext } from "@/lib/map-editor/layer-colors";
@@ -48,9 +47,6 @@ export const mapServerShapeToLayer = (
     serverReason: "reason" in shape ? shape.reason : null,
   } satisfies Layer;
 };
-
-export const toDefaultLayerName = (context: LayerContext, existing: Layer[]) =>
-  makeUniqueLayerName(existing, context === "area" ? "Area" : "Keepout");
 
 export const layerAsPayloadVertices = (
   layer: Layer,

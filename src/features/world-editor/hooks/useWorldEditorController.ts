@@ -1,6 +1,5 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
 import {
   type FormEvent,
   useCallback,
@@ -23,22 +22,15 @@ import {
   ensurePolygonLayer,
   loadMapAsset,
   loadMapLayers,
-  loadMaps,
   saveLayer,
   toServerState,
 } from "@/features/world-editor/services/world-editor-service";
 import { getDefaultLayerColorByContext } from "@/lib/map-editor/layer-colors";
-import type { EditableMap } from "@/features/world-editor/types";
+import { useMapSelection } from "@/features/world-editor/hooks/useMapSelection";
 
 export type WorldEditorController = ReturnType<typeof useWorldEditorController>;
 
 export function useWorldEditorController() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const [maps, setMaps] = useState<EditableMap[]>([]);
-  const [mapsError, setMapsError] = useState("");
-  const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [mapImage, setMapImage] = useState<MapImage | null>(null);
   const [layerContext, setLayerContext] = useState<LayerContext>("area");
   const [loading, setLoading] = useState(false);
@@ -93,46 +85,13 @@ export function useWorldEditorController() {
     defaultLayerContext: layerContext,
   });
 
-  const mapOptions = useMemo(
-    () => maps.map((item) => ({ id: item.id, name: item.name })),
-    [maps],
-  );
-  const selectedMap = useMemo(
-    () => maps.find((item) => item.id === selectedMapId),
-    [maps, selectedMapId],
-  );
-  const queryMapId = useMemo(() => {
-    const nextMapId = Number(searchParams.get("mapId") || "");
-    return Number.isFinite(nextMapId) && nextMapId > 0 ? nextMapId : null;
-  }, [searchParams]);
-
-  useEffect(() => {
-    const load = async () => {
-      const list = await loadMaps();
-      setMaps(list);
-      setMapsError("");
-    };
-
-    load().catch((caught) => {
-      setMapsError(caught instanceof Error ? caught.message : "맵 목록 조회 실패");
-    });
-  }, []);
-
-  useEffect(() => {
-    if (queryMapId !== null) {
-      if (selectedMapId !== queryMapId) {
-        setSelectedMapId(queryMapId);
-      }
-
-      return;
-    }
-
-    if (maps.length > 0 && !selectedMapId) {
-      const fallbackMapId = maps[0]!.id;
-      setSelectedMapId(fallbackMapId);
-      router.replace(`/world-editor?mapId=${fallbackMapId}`);
-    }
-  }, [maps, queryMapId, router, selectedMapId]);
+  const {
+    mapsError,
+    mapOptions,
+    selectedMap,
+    selectedMapId,
+    onMapSelect,
+  } = useMapSelection();
 
   useEffect(() => {
     setDefaultLayerContext(layerContext);
@@ -225,19 +184,6 @@ export function useWorldEditorController() {
     mapImage === null && selectedMap?.sensorMapImagePath
       ? "맵 이미지를 로드할 수 없습니다."
       : "";
-
-  const onMapSelect = useCallback(
-    (value: string) => {
-      const nextMapId = Number(value);
-      if (!Number.isFinite(nextMapId) || nextMapId <= 0) {
-        return;
-      }
-
-      setSelectedMapId(nextMapId);
-      router.replace(`/world-editor?mapId=${nextMapId}`);
-    },
-    [router],
-  );
 
   const setToolAndContext = useCallback(
     (nextTool: Tool) => {

@@ -1,4 +1,5 @@
 import React from "react";
+import { getLayerDisplayName } from "@/lib/map-editor/layer-display";
 import type { Layer } from "@/lib/map-editor/types";
 
 type LayerColor = {
@@ -56,6 +57,7 @@ export function PoiLayer({
   colors,
   onDirectionPointerDown,
 }: PoiLayerProps) {
+  const displayName = getLayerDisplayName(layer);
   const sizePx = Math.max(layer.width, DEFAULT_POI_SIZE) * displayScale;
   const centerX = sizePx * 0.5;
   const centerY = sizePx * 0.5;
@@ -109,7 +111,7 @@ export function PoiLayer({
         />
       </svg>
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[11px] font-medium text-orange-950/90">
-        {layer.content}
+        {displayName}
       </div>
       {isSelected ? (
         <button
@@ -124,7 +126,7 @@ export function PoiLayer({
             width: `${handleSizePx}px`,
             height: `${handleSizePx}px`,
           }}
-          aria-label={`${layer.name} 방향 조정`}
+          aria-label={`${displayName} 방향 조정`}
         />
       ) : null}
     </div>

@@ -1,5 +1,6 @@
 import type { MouseEvent } from "react";
 import type { Layer } from "@/lib/map-editor/types";
+import { getLayerDisplayName } from "@/lib/map-editor/layer-display";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,7 @@ export function LayerListPanel({
           return (
             <div
               key={layer.id}
+              data-layer-id={layer.id}
               className={cn(
                 "flex items-center gap-2 rounded-md border bg-background px-2 py-2 transition-colors",
                 layer.id === selectedId
@@ -68,9 +70,12 @@ export function LayerListPanel({
                 type="button"
                 onClick={() => handleSelectLayer(layer.id)}
                 className="min-w-0 flex-1 truncate text-left text-sm font-medium"
-                aria-label={`${layer.name} 레이어 선택`}
+                aria-label={`${getLayerDisplayName(layer)} 레이어 선택`}
               >
-                {layer.name}
+                {getLayerDisplayName(
+                  layer,
+                  layerZIndexById.get(layer.id) ?? 0,
+                )}
               </button>
               <Badge
                 className={cn(
@@ -94,8 +99,8 @@ export function LayerListPanel({
                     handleToggleVisibility(event, layer.id),
                   disabled: false,
                   ariaLabel: layer.visible
-                    ? `${layer.name} 레이어 숨기기`
-                    : `${layer.name} 레이어 보이기`,
+                    ? `${getLayerDisplayName(layer)} 레이어 숨기기`
+                    : `${getLayerDisplayName(layer)} 레이어 보이기`,
                 },
                 {
                   key: "delete",
@@ -104,14 +109,17 @@ export function LayerListPanel({
                   onClick: (event: MouseEvent<HTMLButtonElement>) =>
                     handleDeleteLayer(event, layer.id),
                   disabled: false,
-                  ariaLabel: `${layer.name} 레이어 삭제`,
+                  ariaLabel: `${getLayerDisplayName(layer)} 레이어 삭제`,
                 },
               ].map((action) => (
                 <Button
                   key={action.key}
                   variant={action.variant}
                   size="sm"
-                  className={cn(action.key === "visibility" ? "ml-auto" : "", "disabled:opacity-40")}
+                  className={cn(
+                    action.key === "visibility" ? "ml-auto" : "",
+                    "disabled:opacity-40",
+                  )}
                   onClick={action.onClick}
                   disabled={action.disabled}
                   aria-label={action.ariaLabel}

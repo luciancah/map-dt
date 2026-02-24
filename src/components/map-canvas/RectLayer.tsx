@@ -1,4 +1,5 @@
 import React from "react";
+import { getLayerDisplayName } from "@/lib/map-editor/layer-display";
 import { Button } from "@/components/ui/button";
 import type { Layer, ResizeHandle } from "@/lib/map-editor/types";
 import { RESIZE_HANDLES, RESIZE_HANDLE_CLASS } from "./resize";
@@ -27,6 +28,8 @@ export function RectLayer({
   colors,
   onResizePointerDown,
 }: RectLayerProps) {
+  const displayName = getLayerDisplayName(layer);
+
   return (
     <div
       data-layer-id={layer.id}
@@ -44,7 +47,7 @@ export function RectLayer({
       }}
     >
       <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
-        {layer.content}
+        {displayName}
       </div>
       {layer.id === selectedLayerId ? (
         <div className="absolute inset-0">

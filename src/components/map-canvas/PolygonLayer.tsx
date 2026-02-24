@@ -1,4 +1,5 @@
 import React from "react";
+import { getLayerDisplayName } from "@/lib/map-editor/layer-display";
 import type { Layer, Point } from "@/lib/map-editor/types";
 
 type LayerColor = {
@@ -50,6 +51,7 @@ export function PolygonLayer({
     hoveredPolygonEdge?.layerId === layer.id
       ? hoveredPolygonEdge.edgeIndex
       : null;
+  const displayName = getLayerDisplayName(layer);
 
   const polygonPoints = layerPoints
     .map(
@@ -84,7 +86,7 @@ export function PolygonLayer({
             strokeWidth={14}
             data-polygon-edge="1"
             data-layer-id={layer.id}
-            aria-label={`${layer.name} edge ${index + 1}`}
+            aria-label={`${displayName} edge ${index + 1}`}
             onPointerEnter={() =>
               setHoveredPolygonEdge({
                 layerId: layer.id,
@@ -154,7 +156,7 @@ export function PolygonLayer({
             top: `${midY}px`,
             transform: "translate(-50%, -50%)",
           }}
-          aria-label={`${layer.name} edge add point`}
+          aria-label={`${displayName} edge add point`}
         >
           +
         </button>,
@@ -185,7 +187,7 @@ export function PolygonLayer({
             top: `${nodeY}px`,
             transform: "translate(-50%, -50%)",
           }}
-          aria-label={`${layer.name} node ${index + 1}`}
+          aria-label={`${displayName} node ${index + 1}`}
         />
       );
     });
@@ -225,7 +227,7 @@ export function PolygonLayer({
       </svg>
       {renderNodes()}
       <div className="pointer-events-none h-full w-full p-1 text-[11px] font-medium text-orange-950/90">
-        {layer.content}
+        {displayName}
       </div>
     </div>
   );

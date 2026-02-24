@@ -1,110 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { actorApi } from "@/lib/api/client";
 import type { ActorEntity } from "@/lib/api/types";
+import { useNamedEntityCrud } from "@/features/entity-management/hooks/useNamedEntityCrud";
 
 export default function ActorsPage() {
-  const [items, setItems] = useState<ActorEntity[]>([]);
-  const [listError, setListError] = useState("");
-  const [createError, setCreateError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [name, setName] = useState("");
   const [enabled, setEnabled] = useState(true);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingName, setEditingName] = useState("");
   const [editingEnabled, setEditingEnabled] = useState(true);
 
-  const load = async () => {
-    const list = await actorApi.list();
-    setItems(list);
-    setListError("");
-  };
+  const {
+    items,
+    listError,
+    createError,
+    actionError,
+    createOpen,
+    creating,
+    createName,
+    editingId,
+    editingName,
+    setCreateName,
+    setEditingName,
+    setCreateOpen,
+    beginEdit,
+    cancelEdit,
+    create,
+    saveEdit,
+    remove,
+  } = useNamedEntityCrud<ActorEntity>({
+    fetchEntities: actorApi.list,
+    createEntity: (name) => actorApi.create(name, enabled),
+    updateEntity: (id, name) => actorApi.update(id, name, editingEnabled),
+    deleteEntity: actorApi.remove,
+    validateName: (name) => (name ? "" : "Actor 이름은 비어 있을 수 없습니다."),
+  });
 
-  useEffect(() => {
-    const loadActors = async () => {
-      try {
-        await load();
-      } catch (error_) {
-        setListError(error_ instanceof Error ? error_.message : "Actor 조회 실패");
-      }
-    };
-
-    loadActors();
-  }, []);
-
-  const createItem = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+  const submitCreate = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const nextName = name.trim();
-    if (!nextName) {
-      setCreateError("Actor 이름은 비어 있을 수 없습니다.");
-      return;
-    }
-
-    setCreating(true);
-    try {
-      const created = await actorApi.create(nextName, enabled);
-      setItems((prev) => [...prev, created]);
-      setName("");
-      setEnabled(true);
-      setCreateError("");
-      setCreateOpen(false);
-    } catch {
-      setCreateError("Actor 생성 실패");
-    } finally {
-      setCreating(false);
-    }
+    await create();
   };
 
-  const beginEdit = (item: ActorEntity) => {
-    setEditingId(item.id);
-    setEditingName(item.name);
-    setEditingEnabled(item.enabled);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditingName("");
-    setEditingEnabled(true);
-  };
-
-  const saveEdit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+  const submitEdit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!editingId) return;
-    const nextName = editingName.trim();
-    if (!nextName) {
-      setActionError("Actor 이름은 비어 있을 수 없습니다.");
-      return;
-    }
-
-    try {
-      const updated = await actorApi.update(editingId, nextName, editingEnabled);
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === editingId ? { ...item, ...updated } : item,
-        ),
-      );
-      cancelEdit();
-      setActionError("");
-    } catch {
-      setActionError("Actor 수정 실패");
-    }
-  };
-
-  const remove = async (id: number) => {
-    try {
-      await actorApi.remove(id);
-      setItems((prev) => prev.filter((item) => item.id !== id));
-    } catch {
-      setActionError("Actor 삭제 실패");
-    }
+    await saveEdit();
   };
 
   return (
@@ -140,7 +89,7 @@ export default function ActorsPage() {
               className="rounded-md border border-stone-200 p-2"
             >
               {editingId === item.id ? (
-                <form onSubmit={saveEdit} className="space-y-2">
+                <form onSubmit={submitEdit} className="space-y-2">
                   <div>
                     <Label htmlFor={`actor-name-${item.id}`}>이름</Label>
                     <Input
@@ -184,7 +133,10 @@ export default function ActorsPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => beginEdit(item)}
+                      onClick={() => {
+                        setEditingEnabled(item.enabled);
+                        beginEdit(item);
+                      }}
                     >
                       수정
                     </Button>
@@ -208,20 +160,20 @@ export default function ActorsPage() {
         onOpenChange={(open) => {
           setCreateOpen(open);
           if (!open) {
-            setCreateError("");
+            setCreateName("");
           }
         }}
         title="새 Actor 생성"
         description="Actor의 이름과 기본 활성 상태를 입력합니다."
       >
-        <form onSubmit={createItem} className="space-y-3">
+        <form onSubmit={submitCreate} className="space-y-3">
           <div>
             <Label htmlFor="new-actor-name">이름</Label>
             <Input
               id="new-actor-name"
-              value={name}
+              value={createName}
               maxLength={100}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => setCreateName(event.target.value)}
               placeholder="Actor 이름"
             />
           </div>
@@ -241,7 +193,6 @@ export default function ActorsPage() {
               variant="outline"
               onClick={() => {
                 setCreateOpen(false);
-                setCreateError("");
               }}
             >
               취소
