@@ -16,9 +16,13 @@ export const mapServerShapeToLayer = (
   mapHeight: number,
 ) => {
   const parsed = fromApiVertices(shape.verticesJson, mapHeight);
+  const fallbackName = `${context === "area" ? "Area" : "Keepout"} ${index + 1}`;
+  const displayName =
+    shape.name?.trim() ? shape.name.trim() : fallbackName;
+
   return {
     id: `${context}-${shape.id}`,
-    name: shape.name ?? `${context === "area" ? "Area" : "Keepout"} ${index + 1}`,
+    name: displayName,
     x: parsed.length > 0 ? Math.min(...parsed.map((point) => point.x)) : 0,
     y: parsed.length > 0 ? Math.min(...parsed.map((point) => point.y)) : 0,
     width:
@@ -36,7 +40,7 @@ export const mapServerShapeToLayer = (
     context,
     visible: true,
     color: getDefaultLayerColorByContext(context),
-    content: shape.name ?? `${context === "area" ? "Area" : "Keepout"} ${index + 1}`,
+    content: displayName,
     serverId: shape.id,
     serverType: "type" in shape ? shape.type : null,
     serverMetadataJson: "metadataJson" in shape ? shape.metadataJson : null,
