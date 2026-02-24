@@ -113,6 +113,37 @@ describe("useRectLayerEditor", () => {
     expect(result.current.selectedLayer?.id).toBe(layer.id);
   });
 
+  it("creates a polygon layer in polygon drawing mode", async () => {
+    const result = createHook();
+
+    act(() => {
+      result.current.setTool("polygon");
+    });
+
+    act(() => {
+      result.current.onCanvasPointerDown(pointerEvent(20, 20));
+    });
+
+    await waitFor(() => {
+      expect(result.current.interactionDraftPolygon).not.toBeNull();
+    });
+
+    act(() => {
+      result.current.onCanvasPointerDown(pointerEvent(120, 20));
+      result.current.onCanvasPointerDown(pointerEvent(120, 120));
+    });
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.layers).toHaveLength(1);
+      expect(result.current.selectedLayer?.shape).toBe("polygon");
+      expect(result.current.selectedLayer?.points?.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
   it("prevents duplicate layer names on rename and updates layer content", async () => {
     const result = createHook();
 

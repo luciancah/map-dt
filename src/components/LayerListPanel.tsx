@@ -16,7 +16,6 @@ type LayerListPanelProps = {
   onSelectLayer: (layerId: string) => void;
   onToggleLayerVisibility: (layerId: string) => void;
   onDeleteLayer: (layerId: string) => void;
-  onMoveLayer: (layerId: string, direction: "up" | "down") => void;
 };
 
 export function LayerListPanel({
@@ -25,7 +24,6 @@ export function LayerListPanel({
   onSelectLayer,
   onToggleLayerVisibility,
   onDeleteLayer,
-  onMoveLayer,
 }: LayerListPanelProps) {
   const visibleLayers = layers.slice().reverse();
   const layerZIndexById = new Map(
@@ -34,15 +32,6 @@ export function LayerListPanel({
 
   const handleSelectLayer = (layerId: string) => {
     onSelectLayer(layerId);
-  };
-
-  const handleMoveLayer = (
-    event: MouseEvent<HTMLButtonElement>,
-    layerId: string,
-    direction: "up" | "down",
-  ) => {
-    event.stopPropagation();
-    onMoveLayer(layerId, direction);
   };
 
   const handleToggleVisibility = (
@@ -76,10 +65,7 @@ export function LayerListPanel({
             아직 레이어가 없습니다.
           </p>
         ) : (
-          visibleLayers.map((layer, displayIndex) => {
-            const isTop = displayIndex === 0;
-            const isBottom = displayIndex === visibleLayers.length - 1;
-
+          visibleLayers.map((layer) => {
             return (
               <div
                 key={layer.id}
@@ -105,24 +91,6 @@ export function LayerListPanel({
                   z: {layerZIndexById.get(layer.id) ?? ""}
                 </Badge>
                 {[
-                  {
-                    key: "up",
-                    label: "▲",
-                    variant: "outline" as const,
-                    onClick: (event: MouseEvent<HTMLButtonElement>) =>
-                      handleMoveLayer(event, layer.id, "up"),
-                    disabled: isTop,
-                    ariaLabel: "Move layer up",
-                  },
-                  {
-                    key: "down",
-                    label: "▼",
-                    variant: "outline" as const,
-                    onClick: (event: MouseEvent<HTMLButtonElement>) =>
-                      handleMoveLayer(event, layer.id, "down"),
-                    disabled: isBottom,
-                    ariaLabel: "Move layer down",
-                  },
                   {
                     key: "visibility",
                     label: layer.visible ? "Hide" : "Show",
