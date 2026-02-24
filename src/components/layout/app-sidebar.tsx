@@ -1,73 +1,83 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, Boxes, Folder, Map } from "lucide-react";
 
+import {
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { NAV_ITEMS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { href: "/maps", label: "Maps", icon: Map },
-  { href: "/actors", label: "Actors", icon: Bot },
-  { href: "/robots", label: "Robots", icon: Folder },
-  { href: "/world-editor", label: "World Builder", icon: Boxes },
-] as const;
-
 type AppSidebarProps = {
-  onNavigate?: () => void;
   className?: string;
 };
 
-const getLabel = (item: { href: string }) => {
-  if (item.href === "/maps") return "지도";
-  if (item.href === "/actors") return "Actor";
-  if (item.href === "/robots") return "Robot";
-  return "월드 빌더";
-};
+function getIsActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
-export function AppSidebar({ onNavigate, className }: AppSidebarProps) {
+export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname();
+  const { isMobile, open, setOpenMobile } = useSidebar();
+  const showText = isMobile || open;
+
+  const closeMobileNav = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
-    <aside className={cn("flex w-full flex-col bg-sidebar text-sidebar-foreground", className)}>
-      <div className="px-3 pt-3">
-        <p className="px-2 pb-2 text-xs font-semibold tracking-wide text-muted-foreground">
-          Navigation
-        </p>
-        <nav className="space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              pathname === item.href ||
-              (pathname.startsWith(item.href) && item.href !== "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onNavigate}
-                className={cn(
-                  "group flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                )}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <Icon className="h-4 w-4 opacity-85" aria-hidden="true" />
-                <span className="truncate">{item.label}</span>
-                <span className="ml-auto hidden text-xs text-muted-foreground sm:inline group-hover:text-current">
-                  {getLabel(item)}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      <div className="mt-auto px-3 pb-3 pt-4">
-        <div className="rounded-md border p-2 text-[11px] text-muted-foreground">
-          <p className="font-medium text-sidebar-foreground">PG Map Twin</p>
-          <p>모던 SaaS형 지도 편집 인터페이스</p>
+    <nav aria-label="Primary" className="flex h-full w-full flex-col" data-slot="sidebar-nav">
+      <SidebarHeader className={className}>
+        <div className="px-1">
+          <p className="rounded-md border border-sidebar-border/40 bg-sidebar/70 px-2 py-2 text-xs font-semibold tracking-wide">
+            PG Map Twin
+          </p>
+          <p className={`mt-2 text-xs text-sidebar-foreground/70 ${showText ? "" : "sr-only"}`}>Map Editor</p>
         </div>
-      </div>
-    </aside>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {NAV_ITEMS.map((item) => {
+                const isActive = getIsActive(pathname, item.href);
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={isActive} onClick={closeMobileNav} tooltip={item.description} href={item.href}>
+                      <Link href={item.href}>
+                        <Icon className="size-4 opacity-90" aria-hidden="true" />
+                        <span className={cn("truncate", showText ? "" : "sr-only")}>
+                          {item.label}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <p className="px-2 text-xs text-sidebar-foreground/70">
+          최신 맵/엔티티 관리와 월드 빌드 작업을 한 번에.
+        </p>
+      </SidebarFooter>
+    </nav>
   );
 }
