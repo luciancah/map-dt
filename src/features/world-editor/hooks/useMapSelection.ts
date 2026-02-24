@@ -64,17 +64,15 @@ export function useMapSelection(): UseMapSelectionResult {
   }, []);
 
   useEffect(() => {
-    if (queryMapId === null && maps.length > 0) {
-      router.replace(`/world-editor?mapId=${maps[0]!.id}`);
+    if (!maps.length || selectedMapId === null) {
       return;
     }
 
-    if (queryMapId !== null && selectedMapId !== queryMapId) {
-      const fallbackMapId = maps[0]?.id;
-      if (fallbackMapId) {
-        router.replace(`/world-editor?mapId=${fallbackMapId}`);
-      }
+    if (queryMapId === selectedMapId) {
+      return;
     }
+
+    router.replace(`/world-editor?mapId=${selectedMapId}`);
   }, [maps, queryMapId, selectedMapId, router]);
 
   const onMapSelect = (value: string) => {
@@ -82,6 +80,8 @@ export function useMapSelection(): UseMapSelectionResult {
     if (!Number.isFinite(nextMapId) || nextMapId <= 0) {
       return;
     }
+
+    if (queryMapId === nextMapId) return;
 
     router.replace(`/world-editor?mapId=${nextMapId}`);
   };

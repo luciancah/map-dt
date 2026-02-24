@@ -58,7 +58,7 @@ export default function WorldEditorPage() {
 
   const [buildResultOpen, setBuildResultOpen] = useState(false);
   const selectedLayerContext = selectedLayer?.context ?? layerContext;
-  const selectedMapValue = selectedMapId ? String(selectedMapId) : "";
+  const selectedMapValue = selectedMapId == null ? "" : String(selectedMapId);
 
   const handleBuild = async () => {
     await buildWorld();
