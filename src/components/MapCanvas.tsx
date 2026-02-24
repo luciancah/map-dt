@@ -50,6 +50,8 @@ type MapCanvasProps = {
   displayWidth?: number;
   displayHeight?: number;
   displayScale?: number;
+  onZoomByStep?: (deltaY: number) => void;
+  canvasViewportRef?: React.RefObject<HTMLDivElement | null>;
   className?: string;
 };
 
@@ -77,6 +79,8 @@ export function MapCanvas({
   displayWidth,
   displayHeight,
   displayScale = 1,
+  onZoomByStep,
+  canvasViewportRef,
   className,
 }: Readonly<MapCanvasProps>) {
   const [hoveredPolygonEdge, setHoveredPolygonEdge] =
@@ -84,6 +88,15 @@ export function MapCanvas({
   const [canvasCursorClass, setCanvasCursorClass] = React.useState(
     "cursor-crosshair",
   );
+  const viewportRef = canvasViewportRef ?? null;
+  const isPanningRef = React.useRef(false);
+  const activePanPointerIdRef = React.useRef<number | null>(null);
+  const panStartRef = React.useRef({
+    x: 0,
+    y: 0,
+    scrollLeft: 0,
+    scrollTop: 0,
+  });
 
   const boardWidth =
     displayWidth ?? mapImage?.width ?? EDITOR_RULES.fallbackMapWidth;
@@ -142,11 +155,100 @@ export function MapCanvas({
     return tool === "select" ? "cursor-default" : "cursor-crosshair";
   };
 
+  const shouldStartPan = (event: React.PointerEvent<HTMLDivElement>) =>
+    event.button === 1 ||
+    (event.button === 0 && (event.ctrlKey || event.shiftKey));
+
+  const handleFramePointerDown = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (shouldStartPan(event)) return;
+    onPointerDown(event);
+  };
+
   const handleCanvasPointerMove = (
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
     const nextCursor = getCanvasCursorClass(event.target);
     setCanvasCursorClass(nextCursor);
+  };
+
+  const clamp = (value: number, min: number, max: number) => {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+  };
+
+  const beginCanvasPan = (event: React.PointerEvent<HTMLDivElement>) => {
+    const viewport = viewportRef?.current;
+    if (!viewport || !shouldStartPan(event)) return;
+
+    event.preventDefault();
+    isPanningRef.current = true;
+    activePanPointerIdRef.current = event.pointerId;
+    panStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      scrollLeft: viewport.scrollLeft,
+      scrollTop: viewport.scrollTop,
+    };
+    setCanvasCursorClass("cursor-grabbing");
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const updateCanvasPan = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (
+      !isPanningRef.current ||
+      activePanPointerIdRef.current !== event.pointerId
+    ) {
+      return;
+    }
+
+    const viewport = viewportRef?.current;
+    if (!viewport) return;
+
+    const deltaX = event.clientX - panStartRef.current.x;
+    const deltaY = event.clientY - panStartRef.current.y;
+
+    const nextScrollLeft = clamp(
+      panStartRef.current.scrollLeft - deltaX,
+      0,
+      Math.max(0, viewport.scrollWidth - viewport.clientWidth),
+    );
+    const nextScrollTop = clamp(
+      panStartRef.current.scrollTop - deltaY,
+      0,
+      Math.max(0, viewport.scrollHeight - viewport.clientHeight),
+    );
+    viewport.scrollTo({
+      left: nextScrollLeft,
+      top: nextScrollTop,
+      behavior: "auto",
+    });
+  };
+
+  const endCanvasPan = (event?: React.PointerEvent<HTMLDivElement>) => {
+    const pointerId = activePanPointerIdRef.current;
+    isPanningRef.current = false;
+    activePanPointerIdRef.current = null;
+
+    if (
+      pointerId !== null &&
+      typeof event?.currentTarget?.releasePointerCapture === "function"
+    ) {
+      event.currentTarget.releasePointerCapture(pointerId);
+    }
+
+    setCanvasCursorClass((previous) => {
+      if (previous !== "cursor-grabbing") return previous;
+      return tool === "select" ? "cursor-default" : "cursor-crosshair";
+    });
+  };
+
+  const handleCanvasWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!onZoomByStep) return;
+    event.preventDefault();
+    onZoomByStep(event.deltaY);
   };
 
   const resetCanvasCursor = () => {
@@ -164,10 +266,19 @@ export function MapCanvas({
         className,
       )}
     >
-      <div className="relative h-full min-h-0 overflow-auto">
+      <div
+        ref={viewportRef}
+        className="relative h-full min-h-0 overflow-auto touch-none"
+        onPointerDown={beginCanvasPan}
+        onPointerMove={updateCanvasPan}
+        onPointerUp={endCanvasPan}
+        onPointerCancel={endCanvasPan}
+        onPointerLeave={endCanvasPan}
+        onWheel={handleCanvasWheel}
+      >
         <div
           ref={frameRef}
-          onPointerDown={onPointerDown}
+          onPointerDown={handleFramePointerDown}
           onPointerMove={handleCanvasPointerMove}
           onPointerLeave={resetCanvasCursor}
           onContextMenu={(event) => event.preventDefault()}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BuildResultDialog } from "@/features/world-editor/components/BuildResultDialog";
 import { WorldEditorCanvasPane } from "@/features/world-editor/components/WorldEditorCanvasPane";
 import { WorldEditorInspectorPanel } from "@/features/world-editor/components/WorldEditorInspectorPanel";
@@ -14,7 +14,8 @@ export default function WorldEditorPage() {
     buildWorld,
     contextOptions,
     deleteSelectedLayer,
-    displaySize,
+    displayWidth,
+    displayHeight,
     gridStepPx,
     interactionDraftPolygon,
     interactionDraftRect,
@@ -50,6 +51,9 @@ export default function WorldEditorPage() {
     tool,
     setToolAndContext,
     selectLayerAndApplyContext,
+    viewportRef,
+    onZoomByStep,
+    effectiveScale,
   } = useWorldEditorController();
 
   const [buildResultOpen, setBuildResultOpen] = useState(false);
@@ -60,6 +64,12 @@ export default function WorldEditorPage() {
     await buildWorld();
     setBuildResultOpen(true);
   };
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.scrollTo({ left: 0, top: 0, behavior: "auto" });
+  }, [mapImage, viewportRef]);
 
   return (
     <>
@@ -105,8 +115,12 @@ export default function WorldEditorPage() {
               onPolygonNodePointerDown={startPolygonNodeDrag}
               onPolygonEdgePointerDown={insertPolygonPointOnEdge}
               onResizePointerDown={startResize}
+              viewportRef={viewportRef}
+              onZoomByStep={onZoomByStep}
+              displayWidth={displayWidth}
+              displayHeight={displayHeight}
+              effectiveScale={effectiveScale}
               gridStepPx={gridStepPx}
-              displaySize={displaySize}
             />
           </section>
 
@@ -134,7 +148,7 @@ export default function WorldEditorPage() {
           message={message}
           layers={layers}
           selectedId={selectedId}
-          displayScale={displaySize.scale}
+          displayScale={effectiveScale}
           mapImage={mapImage}
         />
       </div>

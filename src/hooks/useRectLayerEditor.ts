@@ -77,10 +77,17 @@ type UseRectLayerEditorOptions = {
   mapHeight?: number | null;
   gridStepPx?: number | null;
   displayScale?: number;
+  canvasViewportRef?: MutableRefObject<HTMLDivElement | null>;
   defaultLayerContext?: LayerContext;
 };
 
 const DEFAULT_POI_SIZE = 24;
+
+const boundsWidth = (frame: HTMLDivElement, scale: number) =>
+  Math.max(0, frame.getBoundingClientRect().width / scale);
+
+const boundsHeight = (frame: HTMLDivElement, scale: number) =>
+  Math.max(0, frame.getBoundingClientRect().height / scale);
 
 const normalizeDirection = (value: number) => {
   let angle = value % 360;
@@ -94,6 +101,7 @@ export function useRectLayerEditor({
   mapHeight,
   gridStepPx,
   displayScale = 1,
+  canvasViewportRef,
   defaultLayerContext = "area",
 }: UseRectLayerEditorOptions): UseRectLayerEditor {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -145,17 +153,24 @@ export function useRectLayerEditor({
       const pixelScale = Number.isFinite(displayScale) && displayScale > 0 ? displayScale : 1;
       const frame = frameRef.current;
       if (!frame) return null;
-      const bounds = frame.getBoundingClientRect();
+      const viewport = canvasViewportRef?.current;
+      const viewportRect = viewport?.getBoundingClientRect();
+      const originX = viewportRect?.left ?? frame.getBoundingClientRect().left;
+      const originY = viewportRect?.top ?? frame.getBoundingClientRect().top;
+      const scrollX = viewport?.scrollLeft ?? 0;
+      const scrollY = viewport?.scrollTop ?? 0;
+      const maxX = mapWidth ?? boundsWidth(frame, pixelScale);
+      const maxY = mapHeight ?? boundsHeight(frame, pixelScale);
       const point: Point = {
         x: clamp(
-          (event.clientX - bounds.left) / pixelScale,
+          (event.clientX - originX + scrollX) / pixelScale,
           0,
-          bounds.width / pixelScale,
+          maxX,
         ),
         y: clamp(
-          (event.clientY - bounds.top) / pixelScale,
+          (event.clientY - originY + scrollY) / pixelScale,
           0,
-          bounds.height / pixelScale,
+          maxY,
         ),
       } satisfies Point;
       return {
@@ -163,7 +178,7 @@ export function useRectLayerEditor({
         y: snapToGrid(point.y),
       };
     },
-    [displayScale, snapToGrid],
+    [canvasViewportRef, displayScale, mapHeight, mapWidth, snapToGrid],
   );
 
   const snapRect = useCallback(
