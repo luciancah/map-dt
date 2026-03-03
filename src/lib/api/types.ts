@@ -17,6 +17,50 @@ export type RobotEntity = {
   name: string;
 };
 
+export type GenerateRequest = {
+  message: string;
+  conversationId?: string | null;
+};
+
+export type GenerateResponse = {
+  conversationId: string;
+  generation: string;
+  reason?: string | null;
+};
+
+export type GenerateStreamResponse = {
+  conversationId: string;
+  index: number;
+  delta: string;
+  done: boolean;
+};
+
+export type GridPoint = {
+  x: number;
+  y: number;
+};
+
+export type ActorMovePayload = {
+  actorId: number;
+  x: number;
+  y: number;
+};
+
+export type ActorMoveResponse = {
+  found: boolean;
+  path: GridPoint[];
+  reason: string;
+};
+
+export type ActorStatus = {
+  actorId: number;
+  size: number;
+  x: number;
+  y: number;
+  speech?: string;
+  [key: string]: unknown;
+};
+
 export type AreaEntity = {
   id: number;
   name: string;

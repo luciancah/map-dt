@@ -1,12 +1,19 @@
 import {
   ActorEntity,
+  ActorMovePayload,
+  ActorMoveResponse,
+  ActorStatus,
   AreaEntity,
+  GenerateRequest,
+  GenerateResponse,
+  GenerateStreamResponse,
   GridMapPayload,
   KeepoutEntity,
   MapEntity,
   MapWithImage,
   RobotEntity,
 } from "@/lib/api/types";
+import { readNdjson, subscribeSse } from "@/lib/api/stream";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_TUDUBEM_API_URL ?? "http://localhost:8080";
 
@@ -130,6 +137,10 @@ export const actorApi = {
     return request<ActorEntity[]>("/actor");
   },
 
+  async getById(id: number): Promise<ActorEntity> {
+    return request<ActorEntity>(`/actor/${id}`);
+  },
+
   async create(name: string, enabled = true): Promise<ActorEntity> {
     return request<ActorEntity>("/actor", {
       method: "POST",
@@ -156,6 +167,10 @@ export const robotApi = {
     return request<RobotEntity[]>("/robot");
   },
 
+  async getById(id: number): Promise<RobotEntity> {
+    return request<RobotEntity>(`/robot/${id}`);
+  },
+
   async create(name: string): Promise<RobotEntity> {
     return request<RobotEntity>("/robot", {
       method: "POST",
@@ -180,6 +195,10 @@ export const robotApi = {
 export const areaApi = {
   async list(mapId: number): Promise<AreaEntity[]> {
     return request<AreaEntity[]>(`/map/${mapId}/areas`);
+  },
+
+  async getById(mapId: number, id: number): Promise<AreaEntity> {
+    return request<AreaEntity>(`/map/${mapId}/areas/${id}`);
   },
 
   async create(
@@ -213,6 +232,10 @@ export const areaApi = {
 export const keepoutApi = {
   async list(mapId: number): Promise<KeepoutEntity[]> {
     return request<KeepoutEntity[]>(`/map/${mapId}/keepout-zones`);
+  },
+
+  async getById(mapId: number, id: number): Promise<KeepoutEntity> {
+    return request<KeepoutEntity>(`/map/${mapId}/keepout-zones/${id}`);
   },
 
   async create(
@@ -254,5 +277,73 @@ export const worldApi = {
 
   async getImage(mapId: number): Promise<Blob> {
     return requestBlob(`/world/${mapId}/image`);
+  },
+
+  subscribeStream(
+    mapId: number,
+    onMessage: (payload: GridMapPayload) => void,
+    onError?: (error: unknown) => void,
+  ): () => void {
+    return subscribeSse<GridMapPayload>(`${API_BASE_URL}/world/${mapId}/stream`, onMessage, {
+      event: "grid-map",
+      onError,
+    });
+  },
+};
+
+export const actorSimApi = {
+  async move(mapId: number, payload: ActorMovePayload): Promise<ActorMoveResponse> {
+    return request<ActorMoveResponse>(`/actor/sim/${mapId}?actorId=${payload.actorId}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ x: payload.x, y: payload.y }),
+    });
+  },
+
+  subscribeStatusStream(onMessage: (payload: ActorStatus) => void, onError?: (error: unknown) => void): () => void {
+    return subscribeSse<ActorStatus>(`${API_BASE_URL}/actor/sim/status/stream`, onMessage, {
+      event: "actor-status",
+      onError,
+    });
+  },
+};
+
+export const monitorApi = {
+  async getTrajectoryImage(mapId: number, actorId?: number): Promise<Blob> {
+    const params = actorId === undefined ? "" : `?actorId=${actorId}`;
+    return requestBlob(`/monitor/${mapId}/trajectory-image${params}`);
+  },
+};
+
+export const aiApi = {
+  async generate(payload: GenerateRequest): Promise<GenerateResponse> {
+    return request<GenerateResponse>("/ai/generate", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async streamGenerate(
+    payload: GenerateRequest,
+    onMessage: (payload: GenerateStreamResponse) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    return readNdjson<GenerateStreamResponse>(
+      `${API_BASE_URL}/ai/generateStream`,
+      onMessage,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal,
+      },
+    );
   },
 };

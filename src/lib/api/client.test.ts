@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { areaApi, keepoutApi, mapApi, worldApi } from "./client";
+import {
+  actorApi,
+  areaApi,
+  actorSimApi,
+  aiApi,
+  monitorApi,
+  robotApi,
+  keepoutApi,
+  mapApi,
+  worldApi,
+} from "./client";
+import type { GenerateResponse, GenerateStreamResponse } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_TUDUBEM_API_URL ?? "http://localhost:8080";
 
@@ -156,5 +167,113 @@ describe("api client", () => {
     expect(fetchSpy.mock.calls[1][0]).toBe(`${API_BASE_URL}/world/3/image`);
     expect(await image.text()).toBe("png");
     expect(built).toEqual(gridPayload);
+  });
+
+  it("loads actor details by id", async () => {
+    fetchSpy.mockResolvedValue(
+      createResponse(200, { id: 9, name: "actor-x", enabled: false }),
+    );
+
+    const actor = await actorApi.getById(9);
+
+    expect(fetchSpy).toHaveBeenCalledWith(`${API_BASE_URL}/actor/9`, expect.objectContaining({}));
+    expect(actor).toEqual({ id: 9, name: "actor-x", enabled: false });
+  });
+
+  it("loads robot details by id", async () => {
+    fetchSpy.mockResolvedValue(createResponse(200, { id: 12, name: "robot-z" }));
+
+    const robot = await robotApi.getById(12);
+
+    expect(fetchSpy).toHaveBeenCalledWith(`${API_BASE_URL}/robot/12`, expect.objectContaining({}));
+    expect(robot).toEqual({ id: 12, name: "robot-z" });
+  });
+
+  it("moves actor simulation path by map and actor id", async () => {
+    const pathResponse = {
+      found: true,
+      reason: "ok",
+      path: [
+        { x: 0, y: 0 },
+        { x: 2, y: 3 },
+      ],
+    };
+    fetchSpy.mockResolvedValue(createResponse(200, pathResponse));
+
+    const moveResponse = await actorSimApi.move(1, { actorId: 1, x: 2, y: 3 });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${API_BASE_URL}/actor/sim/1?actorId=1`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ x: 2, y: 3 }),
+        headers: expect.objectContaining({ "content-type": "application/json" }),
+      }),
+    );
+    expect(moveResponse).toEqual(pathResponse);
+  });
+
+  it("fetches trajectory image with optional actorId", async () => {
+    fetchSpy.mockResolvedValue(
+      createResponse(200, "png", { "content-type": "image/png" }),
+    );
+    fetchSpy.mockResolvedValueOnce(
+      createResponse(200, "png", { "content-type": "image/png" }),
+    );
+
+    const first = await monitorApi.getTrajectoryImage(7);
+    const second = await monitorApi.getTrajectoryImage(7, 2);
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, `${API_BASE_URL}/monitor/7/trajectory-image`, expect.objectContaining({ credentials: "include" }));
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      2,
+      `${API_BASE_URL}/monitor/7/trajectory-image?actorId=2`,
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(await first.text()).toBe("png");
+    expect(await second.text()).toBe("png");
+  });
+
+  it("posts ai generate with message", async () => {
+    const response: GenerateResponse = {
+      conversationId: "conv-1",
+      generation: "안녕하세요",
+      reason: null,
+    };
+    fetchSpy.mockResolvedValue(createResponse(200, response));
+
+    const generated = await aiApi.generate({ message: "hi" });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${API_BASE_URL}/ai/generate`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ message: "hi" }),
+        headers: expect.objectContaining({ "content-type": "application/json" }),
+      }),
+    );
+    expect(generated).toEqual(response);
+  });
+
+  it("streams ai generation payloads as ndjson", async () => {
+    const streamPayloads = [
+      { conversationId: "conv-stream", index: 0, delta: "a", done: false },
+      { conversationId: "conv-stream", index: 1, delta: "b", done: false },
+      { conversationId: "conv-stream", index: 2, delta: "", done: true },
+    ];
+    const body = `${streamPayloads.map((item) => JSON.stringify(item)).join("\n")}\n`;
+    fetchSpy.mockResolvedValue(new Response(body, { status: 200 }));
+
+    const chunks: GenerateStreamResponse[] = [];
+    await aiApi.streamGenerate({ message: "stream" }, (payload) => chunks.push(payload));
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${API_BASE_URL}/ai/generateStream`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ message: "stream" }),
+      }),
+    );
+    expect(chunks).toEqual(streamPayloads);
   });
 });
