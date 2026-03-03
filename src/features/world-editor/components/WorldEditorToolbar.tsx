@@ -1,6 +1,6 @@
 "use client";
 
-import { MousePointer2, Pentagon, Square } from "lucide-react";
+import { MapPin, MousePointer2, Pentagon, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TOOL_OPTIONS } from "@/features/world-editor/world-editor-constants";
@@ -16,6 +16,7 @@ const TOOL_ICON_BY_ID = {
   select: MousePointer2,
   rect: Square,
   polygon: Pentagon,
+  poi: MapPin,
 } as const;
 
 export function WorldEditorToolbar({

@@ -4,6 +4,7 @@ import type {
   LayerContext,
   MapImage,
 } from "@/lib/map-editor/types";
+import type { MapResponseEntity } from "@/features/world-editor/types";
 import {
   ensurePolygonLayer,
   toServerState,
@@ -33,7 +34,7 @@ type UseWorldEditorLayerMutationsOptions = {
     keepoutEnabled: boolean,
     keepoutReason: string,
     mapHeight: number,
-  ) => Promise<{ entity: { id: number; [key: string]: unknown } }>;
+  ) => Promise<{ entity: MapResponseEntity }>;
   deleteLayer: (mapId: number, layer: Layer) => Promise<void>;
   buildWorldImage: (mapId: number) => Promise<Blob>;
   getDefaultColorByContext: (context: LayerContext) => string;

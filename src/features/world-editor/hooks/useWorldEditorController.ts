@@ -36,6 +36,10 @@ export function useWorldEditorController() {
   const [viewportZoom, setViewportZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
+  const resetViewport = useCallback(() => {
+    setViewportZoom(1);
+  }, []);
+
   const {
     mapOptions,
     selectedMap,
@@ -98,16 +102,18 @@ export function useWorldEditorController() {
     canvasViewportRef: viewportRef,
   });
 
+  const handleMapImageChange = useCallback((nextMapImage: MapImage | null) => {
+    setMapImage(nextMapImage);
+    resetViewport();
+  }, [resetViewport]);
+
   const mapLoader = useWorldEditorMapLoader({
     selectedMap,
     selectedMapId,
     clearAllLayers,
     setLayersFromServer,
     onMessage: setMessage,
-    onMapImageChange: (nextMapImage) => {
-      setMapImage(nextMapImage);
-      resetViewport();
-    },
+    onMapImageChange: handleMapImageChange,
   });
 
   const inspectorForm: UseWorldEditorInspectorFormResult =
@@ -178,10 +184,6 @@ export function useWorldEditorController() {
     },
     [setViewportScale, viewportZoom],
   );
-
-  const resetViewport = useCallback(() => {
-    setViewportZoom(1);
-  }, []);
 
   const selectLayerAndApplyContext = useCallback(
     (layerId: string) => {

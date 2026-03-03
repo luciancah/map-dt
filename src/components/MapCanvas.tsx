@@ -90,6 +90,7 @@ export function MapCanvas({
   );
   const viewportRef = canvasViewportRef ?? null;
   const isPanningRef = React.useRef(false);
+  const isPanKeyPressedRef = React.useRef(false);
   const activePanPointerIdRef = React.useRef<number | null>(null);
   const panStartRef = React.useRef({
     x: 0,
@@ -157,7 +158,8 @@ export function MapCanvas({
 
   const shouldStartPan = (event: React.PointerEvent<HTMLDivElement>) =>
     event.button === 1 ||
-    (event.button === 0 && (event.ctrlKey || event.shiftKey));
+    (event.button === 0 &&
+      (event.ctrlKey || event.shiftKey || isPanKeyPressedRef.current));
 
   const handleFramePointerDown = (
     event: React.PointerEvent<HTMLDivElement>,
@@ -196,7 +198,9 @@ export function MapCanvas({
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
-  const updateCanvasPan = (event: React.PointerEvent<HTMLDivElement>) => {
+  const updateCanvasPan = (
+    event: React.PointerEvent<HTMLDivElement> | PointerEvent,
+  ) => {
     if (
       !isPanningRef.current ||
       activePanPointerIdRef.current !== event.pointerId
@@ -250,6 +254,55 @@ export function MapCanvas({
     event.preventDefault();
     onZoomByStep(event.deltaY);
   };
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+    const target = event.target as Element | null;
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    ) {
+      return;
+    }
+
+      if (event.code === "Space") {
+        isPanKeyPressedRef.current = true;
+        event.preventDefault();
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === "Space") {
+        isPanKeyPressedRef.current = false;
+      }
+    };
+    const handleWindowBlur = () => {
+      isPanKeyPressedRef.current = false;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      updateCanvasPan(event);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resetCanvasCursor = () => {
     setCanvasCursorClass(tool === "select" ? "cursor-default" : "cursor-crosshair");

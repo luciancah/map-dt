@@ -3,13 +3,6 @@
 import { LayerListPanel } from "@/components/LayerListPanel";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { LayerContext } from "@/lib/map-editor/types";
 
 type Option = {
@@ -71,22 +64,19 @@ export function WorldEditorLeftPanel({
           {mapOptions.length === 0 ? (
             <p className="text-xs text-muted-foreground">맵이 없습니다.</p>
           ) : (
-            <Select
-              value={selectedMapValue || undefined}
-              onValueChange={onMapSelect}
+            <select
+              id="map-select"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+              value={selectedMapValue}
+              onChange={(event) => onMapSelect(event.target.value)}
               disabled={loading}
             >
-              <SelectTrigger id="map-select" className="h-9 w-full">
-                <SelectValue placeholder="맵 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {mapOptions.map((item) => (
-                  <SelectItem key={item.id} value={String(item.id)}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {mapOptions.map((item) => (
+                <option key={item.id} value={String(item.id)}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           )}
           {mapImage ? (
             <p className="text-[11px] text-muted-foreground">
