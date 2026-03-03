@@ -18,8 +18,9 @@ type AppShellProps = {
 
 export function AppShell({ children }: Readonly<AppShellProps>) {
   const pathname = usePathname();
-  const pageTitle = useMemo(() => getPageTitle(pathname), [pathname]);
-  const isWorldEditorRoute = pathname.startsWith("/world-editor");
+  const safePathname = pathname ?? "/";
+  const pageTitle = useMemo(() => getPageTitle(safePathname), [safePathname]);
+  const isWorldEditorRoute = safePathname.startsWith("/world-editor");
 
   return (
     <SidebarProvider>

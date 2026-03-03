@@ -9,16 +9,20 @@ const navItems = [
   { href: "/actors", label: "Actors" },
   { href: "/robots", label: "Robots" },
   { href: "/world-editor", label: "World Builder" },
+  { href: "/simulation", label: "Simulation" },
+  { href: "/monitor", label: "Monitor" },
+  { href: "/ai", label: "AI" },
 ];
 
 export function MainNav() {
   const pathname = usePathname();
+  const safePathname = pathname ?? "/";
 
   return (
     <Card className="w-full">
       <div className="flex flex-wrap gap-2 p-2">
         {navItems.map((item) => {
-          const active = pathname === item.href;
+          const active = safePathname === item.href;
           return (
             <Link
               key={item.href}

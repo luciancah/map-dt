@@ -1,4 +1,4 @@
-import { Bot, Boxes, Folder, Map } from "lucide-react";
+import { Bot, Boxes, Folder, Map, Move, Radar, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type NavItem = {
@@ -33,6 +33,24 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: Boxes,
     description: "면적/금지영역 영역 편집",
   },
+  {
+    href: "/simulation",
+    label: "Simulation",
+    icon: Move,
+    description: "Actor 이동 시뮬레이션 및 상태 스트림",
+  },
+  {
+    href: "/monitor",
+    label: "Monitor",
+    icon: Radar,
+    description: "Actor 궤적 이미지 조회",
+  },
+  {
+    href: "/ai",
+    label: "AI",
+    icon: Sparkles,
+    description: "AI 생성/스트리밍 호출",
+  },
 ] as const;
 
 const SEGMENT_LABEL_MAP: Record<string, string> = {
@@ -40,6 +58,9 @@ const SEGMENT_LABEL_MAP: Record<string, string> = {
   actors: "Actors",
   robots: "Robots",
   "world-editor": "World Builder",
+  simulation: "Simulation",
+  monitor: "Monitor",
+  ai: "AI",
 };
 
 export type BreadcrumbItem = {
@@ -53,14 +74,16 @@ export function toTitleCase(value: string) {
     : "";
 }
 
-export function getPageTitle(pathname: string) {
-  const segments = pathname.split("/").filter(Boolean);
+export function getPageTitle(pathname: string | null | undefined) {
+  const safePathname = pathname ?? "";
+  const segments = safePathname.split("/").filter(Boolean);
   const lastSegment = segments[segments.length - 1] ?? "maps";
   return SEGMENT_LABEL_MAP[lastSegment] ?? toTitleCase(lastSegment);
 }
 
-export function getBreadcrumbItems(pathname: string): BreadcrumbItem[] {
-  const segments = pathname.split("/").filter(Boolean);
+export function getBreadcrumbItems(pathname: string | null | undefined): BreadcrumbItem[] {
+  const safePathname = pathname ?? "";
+  const segments = safePathname.split("/").filter(Boolean);
   if (segments.length === 0) return [{ href: "/", label: "Home" }];
 
   return segments.map((segment, index) => ({

@@ -29,6 +29,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname();
   const { isMobile, open, setOpenMobile } = useSidebar();
   const showText = isMobile || open;
+  const safePathname = pathname ?? "/";
 
   const closeMobileNav = () => {
     if (isMobile) {
@@ -57,7 +58,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_ITEMS.map((item) => {
-                const isActive = getIsActive(pathname, item.href);
+                const isActive = getIsActive(safePathname, item.href);
                 const Icon = item.icon;
                 return (
                   <SidebarMenuItem key={item.href}>
