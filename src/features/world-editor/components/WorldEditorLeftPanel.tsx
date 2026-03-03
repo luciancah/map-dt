@@ -22,6 +22,8 @@ type WorldEditorLeftPanelProps = {
   mapImage: { width: number; height: number } | null;
   contextOptions: Option[];
   selectedLayerContext: LayerContext;
+  buildStreamEvents: string[];
+  isBuildStreaming: boolean;
   onMapSelect: (value: string) => void;
   onUpdateLayerContext: (context: LayerContext) => void;
   onBuild: () => void | Promise<void>;
@@ -40,6 +42,8 @@ export function WorldEditorLeftPanel({
   mapImage,
   contextOptions,
   selectedLayerContext,
+  buildStreamEvents,
+  isBuildStreaming,
   onMapSelect,
   onUpdateLayerContext,
   onBuild,
@@ -110,8 +114,22 @@ export function WorldEditorLeftPanel({
           disabled={buildDisabled}
           className="w-full"
         >
-          Build
+          {isBuildStreaming ? "Build Streaming..." : "Build"}
         </Button>
+        <div className="rounded-md border border-dashed bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+          <p className="mb-1 font-medium text-foreground">Build 이벤트</p>
+          {buildStreamEvents.length === 0 ? (
+            <p>스트림 이벤트 없음</p>
+          ) : (
+            <ul className="space-y-1">
+              {buildStreamEvents.map((event, index) => (
+                <li key={`${event}-${index}`} className="truncate">
+                  {event}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-3 py-3">

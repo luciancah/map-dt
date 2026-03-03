@@ -46,6 +46,8 @@ export function WorldEditorPageClient() {
     startResize,
     toggleLayerVisible,
     updateSelectedLayerContext,
+    buildStreamEvents,
+    isBuildStreaming,
     worldImageUrl,
     frameRef,
     tool,
@@ -87,6 +89,8 @@ export function WorldEditorPageClient() {
               selectedMapValue={selectedMapValue}
               loading={loading}
               mapImage={mapImage}
+              buildStreamEvents={buildStreamEvents}
+              isBuildStreaming={isBuildStreaming}
               contextOptions={contextOptions}
               selectedLayerContext={selectedLayerContext}
               onMapSelect={onMapSelect}
