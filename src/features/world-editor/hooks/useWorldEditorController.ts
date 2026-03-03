@@ -15,6 +15,7 @@ import {
   saveLayer,
 } from "@/features/world-editor/services/world-editor-service";
 import { getDefaultLayerColorByContext } from "@/lib/map-editor/layer-colors";
+import { worldApi } from "@/lib/api/client";
 import { useWorldEditorMapLoader } from "@/features/world-editor/hooks/useWorldEditorMapLoader";
 import {
   useWorldEditorInspectorForm,
@@ -155,6 +156,7 @@ export function useWorldEditorController() {
     buildWorldImage,
     getDefaultColorByContext: getDefaultLayerColorByContext,
     setWorldImageUrl: setWorldImageUrlWithCleanup,
+    subscribeWorldStream: worldApi.subscribeStream,
   });
 
   const setToolAndContext = useCallback(
@@ -239,6 +241,8 @@ export function useWorldEditorController() {
     saving: mutation.saving,
     message,
     worldImageUrl,
+    buildStreamEvents: mutation.buildStreamEvents,
+    isBuildStreaming: mutation.isBuildStreaming,
     areaType: inspectorForm.areaType,
     metadataJson: inspectorForm.metadataJson,
     keepoutEnabled: inspectorForm.keepoutEnabled,

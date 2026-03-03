@@ -1,14 +1,21 @@
-import { type FormEvent, useCallback, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import type {
   Layer,
   LayerContext,
   MapImage,
 } from "@/lib/map-editor/types";
 import type { MapResponseEntity } from "@/features/world-editor/types";
+import type { GridMapPayload } from "@/lib/api/types";
 import {
   ensurePolygonLayer,
   toServerState,
 } from "@/features/world-editor/services/world-editor-service";
+
+type SubscribeWorldStream = (
+  mapId: number,
+  onMessage: (payload: GridMapPayload) => void,
+  onError?: (error: unknown) => void,
+) => (() => void);
 
 type UseWorldEditorLayerMutationsOptions = {
   selectedLayer: Layer | null;
@@ -39,6 +46,7 @@ type UseWorldEditorLayerMutationsOptions = {
   buildWorldImage: (mapId: number) => Promise<Blob>;
   getDefaultColorByContext: (context: LayerContext) => string;
   setWorldImageUrl: (nextUrl: string) => void;
+  subscribeWorldStream?: SubscribeWorldStream;
 };
 
 type UseWorldEditorLayerMutationsResult = {
@@ -48,6 +56,20 @@ type UseWorldEditorLayerMutationsResult = {
   saveSelectedLayer: () => Promise<void>;
   deleteSelectedLayer: () => Promise<void>;
   buildWorld: () => Promise<void>;
+  buildStreamEvents: string[];
+  isBuildStreaming: boolean;
+};
+
+const BUILD_EVENT_LIMIT = 16;
+const noopUnsubscribe = () => {};
+const defaultSubscribeWorldStream: SubscribeWorldStream = () => noopUnsubscribe;
+
+const formatWorldBuildEvent = (payload: GridMapPayload): string => {
+  const occupied = payload.occupancy.flat().reduce(
+    (total, value) => total + (value > 0 ? 1 : 0),
+    0,
+  );
+  return `${payload.widthCells}x${payload.heightCells} (${payload.cellSizePx}px), occupied=${occupied}`;
 };
 
 export function useWorldEditorLayerMutations({
@@ -70,8 +92,25 @@ export function useWorldEditorLayerMutations({
   buildWorldImage,
   getDefaultColorByContext,
   setWorldImageUrl,
+  subscribeWorldStream = defaultSubscribeWorldStream,
 }: UseWorldEditorLayerMutationsOptions): UseWorldEditorLayerMutationsResult {
   const [saving, setSaving] = useState(false);
+  const [buildStreamEvents, setBuildStreamEvents] = useState<string[]>([]);
+  const [isBuildStreaming, setIsBuildStreaming] = useState(false);
+  const streamUnsubscribeRef = useRef<(() => void) | null>(null);
+
+  const stopBuildStream = useCallback(() => {
+    if (streamUnsubscribeRef.current) {
+      streamUnsubscribeRef.current();
+      streamUnsubscribeRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopBuildStream();
+    };
+  }, [stopBuildStream]);
 
   const onRename = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -192,6 +231,24 @@ export function useWorldEditorLayerMutations({
     const previousMessage = "빌드 실패";
     const inProgressMessage = "빌드 중...";
     setMessage(inProgressMessage);
+    setBuildStreamEvents([]);
+    setIsBuildStreaming(true);
+
+    streamUnsubscribeRef.current = subscribeWorldStream(
+      selectedMapId,
+      (payload) => {
+        const event = formatWorldBuildEvent(payload);
+        setBuildStreamEvents((prev) => [...prev.slice(-BUILD_EVENT_LIMIT + 1), event]);
+        setMessage(`빌드 중: ${event}`);
+      },
+      (caught) => {
+        setBuildStreamEvents((prev) => [
+          ...prev.slice(-BUILD_EVENT_LIMIT + 1),
+          caught instanceof Error ? caught.message : "world stream error",
+        ]);
+      },
+    );
+
     try {
       const blob = await buildWorldImage(selectedMapId);
       const createObjectURL = URL.createObjectURL;
@@ -205,8 +262,11 @@ export function useWorldEditorLayerMutations({
       setMessage("빌드 완료");
     } catch {
       setMessage(previousMessage);
+    } finally {
+      stopBuildStream();
+      setIsBuildStreaming(false);
     }
-  }, [buildWorldImage, selectedMapId, setMessage, setWorldImageUrl]);
+  }, [buildWorldImage, selectedMapId, setMessage, setWorldImageUrl, stopBuildStream, subscribeWorldStream]);
 
   return {
     saving,
@@ -215,5 +275,7 @@ export function useWorldEditorLayerMutations({
     saveSelectedLayer,
     deleteSelectedLayer,
     buildWorld,
+    buildStreamEvents,
+    isBuildStreaming,
   };
 }
