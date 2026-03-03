@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { MapImage, LayerContext, Tool } from "@/lib/map-editor/types";
 import { useCanvasViewport } from "@/hooks/useCanvasViewport";
 import { useRectLayerEditor } from "@/hooks/useRectLayerEditor";
@@ -24,11 +24,21 @@ import { useWorldEditorLayerMutations } from "@/features/world-editor/hooks/useW
 
 export type WorldEditorController = ReturnType<typeof useWorldEditorController>;
 
+const WORLD_MIN_ZOOM = 0.25;
+const WORLD_MAX_ZOOM = 5;
+const WORLD_ZOOM_STEP = 0.12;
+
 export function useWorldEditorController() {
   const [mapImage, setMapImage] = useState<MapImage | null>(null);
   const [layerContext, setLayerContext] = useState<LayerContext>("area");
   const [message, setMessage] = useState("");
   const [worldImageUrl, setWorldImageUrl] = useState("");
+  const [viewportZoom, setViewportZoom] = useState(1);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+
+  const resetViewport = useCallback(() => {
+    setViewportZoom(1);
+  }, []);
 
   const {
     mapOptions,
@@ -43,13 +53,24 @@ export function useWorldEditorController() {
     minHeightPx: 320,
   });
 
-  const gridStepPx = useMemo(
-    () =>
-      mapImage?.width
-        ? Math.max(1, Math.floor(mapImage.width / DEFAULT_GRID_COUNT))
-        : 1,
-    [mapImage?.width],
+  const effectiveScale = useMemo(
+    () => displaySize.scale * viewportZoom,
+    [displaySize.scale, viewportZoom],
   );
+
+  const displayWidth = useMemo(
+    () => Math.max(1, Math.round(displaySize.width * viewportZoom)),
+    [displaySize.width, viewportZoom],
+  );
+
+  const displayHeight = useMemo(
+    () => Math.max(1, Math.round(displaySize.height * viewportZoom)),
+    [displaySize.height, viewportZoom],
+  );
+
+  const gridStepPx = mapImage?.width
+    ? Math.max(1, Math.floor(mapImage.width / DEFAULT_GRID_COUNT))
+    : 1;
 
   const {
     frameRef,
@@ -76,9 +97,15 @@ export function useWorldEditorController() {
     mapWidth: mapImage?.width,
     mapHeight: mapImage?.height,
     gridStepPx,
-    displayScale: displaySize.scale,
+    displayScale: effectiveScale,
     defaultLayerContext: layerContext,
+    canvasViewportRef: viewportRef,
   });
+
+  const handleMapImageChange = useCallback((nextMapImage: MapImage | null) => {
+    setMapImage(nextMapImage);
+    resetViewport();
+  }, [resetViewport]);
 
   const mapLoader = useWorldEditorMapLoader({
     selectedMap,
@@ -86,7 +113,7 @@ export function useWorldEditorController() {
     clearAllLayers,
     setLayersFromServer,
     onMessage: setMessage,
-    onMapImageChange: setMapImage,
+    onMapImageChange: handleMapImageChange,
   });
 
   const inspectorForm: UseWorldEditorInspectorFormResult =
@@ -140,6 +167,22 @@ export function useWorldEditorController() {
       setTool(nextTool);
     },
     [mapImage, setMessage, setTool],
+  );
+
+  const setViewportScale = useCallback((nextZoom: number) => {
+    const normalized = Math.max(
+      WORLD_MIN_ZOOM,
+      Math.min(WORLD_MAX_ZOOM, nextZoom),
+    );
+    setViewportZoom(normalized);
+  }, []);
+
+  const zoomByStep = useCallback(
+    (deltaY: number) => {
+      const direction = deltaY > 0 ? -1 : 1;
+      setViewportScale(viewportZoom * (1 + direction * WORLD_ZOOM_STEP));
+    },
+    [setViewportScale, viewportZoom],
   );
 
   const selectLayerAndApplyContext = useCallback(
@@ -203,6 +246,7 @@ export function useWorldEditorController() {
     layerContext,
     contextOptions: CONTEXT_OPTIONS,
     frameRef,
+    viewportRef,
     tool,
     interactionDraftRect,
     interactionDraftPolygon,
@@ -215,6 +259,17 @@ export function useWorldEditorController() {
     clearAllLayers,
     onMapSelect,
     setToolAndContext,
+    zoom: viewportZoom,
+    setZoom: setViewportScale,
+    zoomByStep,
+    worldMinZoom: WORLD_MIN_ZOOM,
+    worldMaxZoom: WORLD_MAX_ZOOM,
+    worldZoomStep: WORLD_ZOOM_STEP,
+    displayWidth,
+    displayHeight,
+    baseDisplayScale: displaySize.scale,
+    effectiveScale,
+    resetViewport,
     selectLayerAndApplyContext,
     updateSelectedLayerContext,
     onRename,

@@ -1,5 +1,6 @@
 "use client";
 
+import type { RefObject } from "react";
 import { MapCanvas } from "@/components/MapCanvas";
 import { WorldEditorToolbar } from "@/features/world-editor/components/WorldEditorToolbar";
 import type {
@@ -15,7 +16,7 @@ type WorldEditorCanvasPaneProps = {
   mapImage: MapImage | null;
   tool: Tool;
   onToolSelect: (tool: Tool) => void;
-  frameRef: React.RefObject<HTMLDivElement | null>;
+  frameRef: RefObject<HTMLDivElement | null>;
   layers: Layer[];
   selectedId: string | null;
   draftRect: DraftRect | null;
@@ -37,7 +38,11 @@ type WorldEditorCanvasPaneProps = {
     handle: ResizeHandle,
   ) => void;
   gridStepPx: number | null;
-  displaySize: { width: number; height: number; scale: number };
+  displayWidth: number;
+  displayHeight: number;
+  effectiveScale: number;
+  viewportRef: RefObject<HTMLDivElement | null>;
+  onZoomByStep: (deltaY: number) => void;
 };
 
 export function WorldEditorCanvasPane({
@@ -54,7 +59,11 @@ export function WorldEditorCanvasPane({
   onPolygonEdgePointerDown,
   onResizePointerDown,
   gridStepPx,
-  displaySize,
+  displayWidth,
+  displayHeight,
+  effectiveScale,
+  viewportRef,
+  onZoomByStep,
 }: Readonly<WorldEditorCanvasPaneProps>) {
   return (
     <section className="relative flex h-full min-h-0 flex-col bg-background">
@@ -81,6 +90,7 @@ export function WorldEditorCanvasPane({
         {mapImage ? (
           <MapCanvas
             frameRef={frameRef}
+            canvasViewportRef={viewportRef}
             mapImage={mapImage}
             layers={layers}
             selectedId={selectedId}
@@ -93,9 +103,10 @@ export function WorldEditorCanvasPane({
             onPoiDirectionPointerDown={() => {}}
             tool={tool}
             gridStepPx={gridStepPx}
-            displayWidth={displaySize.width}
-            displayHeight={displaySize.height}
-            displayScale={displaySize.scale}
+            displayWidth={displayWidth}
+            displayHeight={displayHeight}
+            displayScale={effectiveScale}
+            onZoomByStep={onZoomByStep}
             className="h-full"
           />
         ) : (

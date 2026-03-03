@@ -1,5 +1,5 @@
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { loadMaps } from "@/features/world-editor/services/world-editor-service";
 import type { EditableMap } from "@/features/world-editor/types";
 
@@ -20,6 +20,7 @@ export type UseMapSelectionResult = {
 export function useMapSelection(): UseMapSelectionResult {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pendingMapIdRef = useRef<number | null>(null);
 
   const [maps, setMaps] = useState<EditableMap[]>([]);
   const [mapsError, setMapsError] = useState("");
@@ -63,28 +64,28 @@ export function useMapSelection(): UseMapSelectionResult {
     });
   }, []);
 
-  useEffect(() => {
-    if (queryMapId === null && maps.length > 0) {
-      router.replace(`/world-editor?mapId=${maps[0]!.id}`);
-      return;
-    }
-
-    if (queryMapId !== null && selectedMapId !== queryMapId) {
-      const fallbackMapId = maps[0]?.id;
-      if (fallbackMapId) {
-        router.replace(`/world-editor?mapId=${fallbackMapId}`);
-      }
-    }
-  }, [maps, queryMapId, selectedMapId, router]);
-
   const onMapSelect = (value: string) => {
     const nextMapId = Number(value);
     if (!Number.isFinite(nextMapId) || nextMapId <= 0) {
       return;
     }
 
+    if (queryMapId === nextMapId) return;
+    if (pendingMapIdRef.current === nextMapId) return;
+
+    pendingMapIdRef.current = nextMapId;
     router.replace(`/world-editor?mapId=${nextMapId}`);
   };
+
+  useEffect(() => {
+    if (queryMapId === null) {
+      return;
+    }
+
+    if (pendingMapIdRef.current === queryMapId) {
+      pendingMapIdRef.current = null;
+    }
+  }, [queryMapId]);
 
   return {
     maps,
